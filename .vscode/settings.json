@@ -1,0 +1,8 @@
+{
+    "python.pythonPath": "/opt/conda/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
+    //"python.autoComplete.extraPaths": [
+    //    "${workspaceFolder}/customModule"
+    //  ]
+}
