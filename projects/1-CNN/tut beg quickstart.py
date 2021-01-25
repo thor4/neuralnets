@@ -1,4 +1,5 @@
 # TensorFlow 2 quickstart for beginners
+# https://www.tensorflow.org/tutorials/quickstart/beginner
 
 import tensorflow as tf
 
