@@ -12,8 +12,8 @@ contrast = 0.45 ; %middle contrast from experiment, dropping other 2
 noise = 1 ; %same as exp
 gratingPeriod = 0.5 ; %same as exp
 gratingPeriodUnits = 'sd' ; %same as exp
-orientation = pi/4 ; %radians, add to / subtract from this to get classes
-tilt = 2.26*(pi/180); %avg tilt used in exp, degrees->radians: *(pi/180)
+orientation = pi/4 ; %add to / subtract from this to get classes
+tilt = 2.26*(pi/180); %avg tilt used in exp, degrees->radios
 counter_tilt = orientation - tilt; clock_tilt = orientation + tilt; 
 
 gaborPatch = uint8(makeGaborPatch(width,[],contrast,noise,...
