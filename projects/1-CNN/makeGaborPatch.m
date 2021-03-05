@@ -29,12 +29,6 @@ function gaborPatch = makeGaborPatch(width,nGaussianSDs,contrastFraction,contras
 %       
 %       Default = 1
 %
-% contrastNoise = contrast of the background of Gabor 
-%       1 = maximal contrast b/t darker and lighter parts of the patch
-%       0 = no noise at all
-%       
-%       Default = 0
-%
 % gratindPeriod = the magnitude of the period of the Gabor patch's grating.
 %       Period can be specified either in units of pixels or in units of
 %       the standard deviation of the Gabor patch Gaussian.
@@ -65,13 +59,8 @@ if ~exist('contrastFraction','var') || isempty(contrastFraction)
     contrastFraction = 1;
 end
 
-if ~exist('contrastNoise','var') || isempty(contrastNoise)
-    contrastNoise = 0;
-end
-
 if ~exist('orientation','var') || isempty(orientation)
     orientation = 'horiztonal';
-    orientation_angle = 0 ;
 end
 
 if ~exist('black','var') || isempty(black)
@@ -109,7 +98,7 @@ end
 
 spatialFrequency = 1 / pixelsPerGratingPeriod; % How many periods/cycles are there in a pixel?
 radiansPerPixel = spatialFrequency * (2 * pi); % = (periods per pixel) * (2 pi radians per period)
-orientation_angle = orientation ;
+
 
 %% adjust contrast
 
@@ -131,7 +120,7 @@ widthArray = (-halfWidthOfGrid) : halfWidthOfGrid;  % widthArray is used in crea
 % Creates a two-dimensional square grid.  For each element i = i(x0, y0) of
 % the grid, x = x(x0, y0) corresponds to the x-coordinate of element "i"
 % and y = y(x0, y0) corresponds to the y-coordinate of element "i"
-[x, y] = meshgrid(widthArray, widthArray);
+[x y] = meshgrid(widthArray, widthArray);
 
 % Creates a sinusoidal grating, where the period of the sinusoid is 
 % approximately equal to "pixelsPerGratingPeriod" pixels.
@@ -139,13 +128,15 @@ widthArray = (-halfWidthOfGrid) : halfWidthOfGrid;  % widthArray is used in crea
 % one; -1 <= gratingMatrix(x0, y0)  <= 1
 
 % the grating is oriented horizontally unless otherwise specified.
-% switch orientation
-%     case 'vertical'
-%         gratingMatrix = sin(radiansPerPixel .* x + 135);
-%     otherwise
-%         gratingMatrix = sin(radiansPerPixel .* (x+y));
-% end
-gratingMatrix = sin(radiansPerPixel .* (cos(orientation_angle).*x+sin(orientation_angle).*y));
+switch orientation
+    case 'vertical'
+        gratingMatrix = sin(radiansPerPixel .* x);
+    case 'horizontal'
+        gratingMatrix = sin(radiansPerPixel .* y);
+    otherwise
+        gratingMatrix = sin(radiansPerPixel .* (cos(orientation).*x+sin(orientation).*y));
+end
+
 %Create noise matrix
 noiseMatrix = 2*(ceil(2*rand(width+1, width+1)))-3; %values from -1 to 1
 noiseMatrix = noiseMatrix * contrastNoise;

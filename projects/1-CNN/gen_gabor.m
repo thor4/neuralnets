@@ -9,7 +9,7 @@
 width = 169 ; % p.stimSize in pixels 
 nGaussianSDs = [] ; %default in exp (6)
 contrast = 0.45 ; %middle contrast from experiment, dropping other 2
-noise = .2 ; %same as exp
+noise = 1 ; %same as exp
 gratingPeriod = 0.5 ; %same as exp
 gratingPeriodUnits = 'sd' ; %same as exp
 orientation = 45 ; %add to / subtract from this to get classes
@@ -34,13 +34,19 @@ gaborPatch_clock = uint8(makeGaborPatch(width,[],contrast,noise,...
 figure(1), clf
 subplot(1,3,1)
 imshow(gaborPatch_counter)
-title('Counter')
+tcounter = sprintf('Counter %.2f',counter_tilt);
+title(tcounter,'FontSize',20)
 subplot(1,3,2)
 imshow(gaborPatch)
-title('Baseline')
+t = sprintf('Baseline %.2f',orientation);
+title(t,'FontSize',20)
 subplot(1,3,3)
 imshow(gaborPatch_clock)
-title('Clock')
+tclock = sprintf('Clock %.2f',clock_tilt);
+title(tclock,'FontSize',20)
+
+
+export_fig('gabors','-png','-transparent'); %save transparent pdf in pwd
 
 %something is up with the orientation change Farshad made in the
 %makeGaborPatch function. ie: when I choose 0 for orientation, it gives a
