@@ -4,8 +4,12 @@
 import tensorflow as tf 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 tf.__version__ #2.4.0
+
+#load images
+path = os.getcwd() #make sure I'm in CNN project folder
 
 #init vars
 BATCH_SIZE = 32
