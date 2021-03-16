@@ -1,24 +1,77 @@
 # Transfer learning and fine-tuning tutorial
 # https://www.tensorflow.org/tutorials/images/transfer_learning
 
-import matplotlib.pyplot as plt
+import tensorflow as tf 
 import numpy as np
+import matplotlib.pyplot as plt
 import os
-import tensorflow as tf
 
+tf.__version__ #2.4.0
+
+#my own images for customizing the pretrained model:
+#import pathlib
+curr_dir = os.getcwd() #make sure I'm in CNN project folder
+# '/workspaces/neuralnets/projects/1-CNN' (equiv to PATH var below)
+train_dir = os.path.join(curr_dir, 'images/train')
+# '/workspaces/neuralnets/projects/1-CNN/images/train'
+# there is a 'clock' and 'cclock' folder in here with 67 images a piece (2/3)
+validation_dir = os.path.join(curr_dir, 'images/validation')
+# '/workspaces/neuralnets/projects/1-CNN/images/validation'
+# there is a 'clock' and 'cclock' folder in here with 33 images a piece (1/3)
+BATCH_SIZE = 67 #stick with one iteration for training and validation per optimal batch guidance here:
+# https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
+# practically, this means only one update of gradient and neural network parameters
+IMG_SIZE = (170, 170) #should all already be this size so probably redundant but good to be sure
+train_dataset = image_dataset_from_directory(train_dir,
+                                             color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                             shuffle=True,
+                                             batch_size=BATCH_SIZE,
+                                             image_size=IMG_SIZE) #Found 134 files belonging to 2 classes.
+validation_dataset = image_dataset_from_directory(validation_dir,
+                                                  color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                                  shuffle=True,
+                                                  batch_size=BATCH_SIZE,
+                                                  image_size=IMG_SIZE) #Found 66 files belonging to 2 classes.
+#show first nine images and labels from training set:
+class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
+plt.figure(figsize=(10, 10))
+for images, labels in train_dataset.take(1): #load first iteration batch from training dataset
+  for i in range(9):
+    ax = plt.subplot(3, 3, i + 1) #setup axis on a 3x3 grid
+    plt.imshow(images[i].numpy().astype("uint8"),cmap='gray') #plot each image
+    plt.title(class_names[labels[i]]) #output associated label for chosen image
+    plt.axis("off")
+
+#tutorial using images for customizing the pretrained model:
 from tensorflow.keras.preprocessing import image_dataset_from_directory
-
 _URL = 'https://storage.googleapis.com/mledu-datasets/cats_and_dogs_filtered.zip'
 path_to_zip = tf.keras.utils.get_file('cats_and_dogs.zip', origin=_URL, extract=True)
+# '/home/jovyan/.keras/datasets/cats_and_dogs.zip'
 PATH = os.path.join(os.path.dirname(path_to_zip), 'cats_and_dogs_filtered')
-
+# '/home/jovyan/.keras/datasets/cats_and_dogs_filtered'
 train_dir = os.path.join(PATH, 'train')
+# '/home/jovyan/.keras/datasets/cats_and_dogs_filtered/train'
+# there is a 'cats' and 'dogs' folder in here with 1000 images a piece (2/3)
 validation_dir = os.path.join(PATH, 'validation')
-
-BATCH_SIZE = 32
-IMG_SIZE = (160, 160)
-
+# '/home/jovyan/.keras/datasets/cats_and_dogs_filtered/validation'
+# there is a 'cats' and 'dogs' folder in here with 500 images a piece (1/3)
+BATCH_SIZE = 32 #gradient and neural network parameters updated after each iteration of 32
+IMG_SIZE = (160, 160) #ensure a uniform resizing since input images are all diff sizes
 train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
-                                             image_size=IMG_SIZE)
+                                             image_size=IMG_SIZE) #Found 2000 files belonging to 2 classes.
+validation_dataset = image_dataset_from_directory(validation_dir,
+                                                  shuffle=True,
+                                                  batch_size=BATCH_SIZE,
+                                                  image_size=IMG_SIZE) #Found 1000 files belonging to 2 classes.
+#show first nine images and labels from training set:
+class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
+plt.figure(figsize=(10, 10))
+for images, labels in train_dataset.take(1): #load first iteration batch from training dataset
+  for i in range(9):
+    ax = plt.subplot(3, 3, i + 1) #setup axis on a 3x3 grid
+    plt.imshow(images[i].numpy().astype("uint8")) #plot each image
+    plt.title(class_names[labels[i]]) #output associated label for chosen image
+    plt.axis("off")
+
