@@ -21,7 +21,7 @@ validation_dir = os.path.join(curr_dir, 'images/validation')
 test_dir = os.path.join(curr_dir, 'images/test')
 # '/workspaces/neuralnets/projects/1-CNN/images/validation'
 # there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
-BATCH_SIZE = 60 #stick with one iteration for training and validation per optimal batch guidance here:
+BATCH_SIZE = 32 #stick with one iteration for training and validation per optimal batch guidance here:
 # https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
 # practically, this means only one update of gradient and neural network parameters
 IMG_SIZE = (170, 170) #should all already be this size so probably redundant but good to be sure
@@ -29,17 +29,17 @@ train_dataset = image_dataset_from_directory(train_dir,
                                              color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
-                                             image_size=IMG_SIZE) #Found 134 files belonging to 2 classes.
+                                             image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
 validation_dataset = image_dataset_from_directory(validation_dir,
                                                   color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
-                                                  image_size=IMG_SIZE) #Found 66 files belonging to 2 classes.
-test_dataset = image_dataset_from_directory(validation_dir,
+                                                  image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
+test_dataset = image_dataset_from_directory(test_dir,
                                                   color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
-                                                  image_size=IMG_SIZE) #Found 66 files belonging to 2 classes.
+                                                  image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -49,7 +49,7 @@ for images, labels in train_dataset.take(1): #load first iteration batch from tr
     plt.imshow(images[i].numpy().astype("uint8"),cmap='gray') #plot each image
     plt.title(class_names[labels[i]]) #output associated label for chosen image
     plt.axis("off")
-#if I need to use more than 100 images with multiple batches, I can do the following code. Otherwise, manually split to train/validate/test
+#if I need to use more than 100 images with more than 5 batches, I can do the following code. Otherwise, manually split to train/validate/test
 # #determine how many batches of data are available in the validation set using cardinality:
 # val_batches = tf.data.experimental.cardinality(validation_dataset)
 # # val_batches.numpy() #32 batches to accomodate all 1000 validation instances
@@ -57,6 +57,12 @@ for images, labels in train_dataset.take(1): #load first iteration batch from tr
 # validation_dataset = validation_dataset.skip(val_batches // 5) #skips first 20%, size is 26
 # print('Number of validation batches: %d' % tf.data.experimental.cardinality(validation_dataset)) #26
 # print('Number of test batches: %d' % tf.data.experimental.cardinality(test_dataset)) #6
+#now configure the dataset for performance using buffered prefetching to load images from disk without having I/O become blocking
+#may not need the following until we do more than one batch at a time:
+AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynamically at runtime
+train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
 
 #tutorial using images for customizing the pretrained model:
@@ -98,3 +104,8 @@ test_dataset = validation_dataset.take(val_batches // 5) #take first 20% of the 
 validation_dataset = validation_dataset.skip(val_batches // 5) #skips first 20%, size is 26
 print('Number of validation batches: %d' % tf.data.experimental.cardinality(validation_dataset)) #26
 print('Number of test batches: %d' % tf.data.experimental.cardinality(test_dataset)) #6
+#now configure the dataset for performance using buffered prefetching to load images from disk without having I/O become blocking
+AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynamically at runtime
+train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
