@@ -14,11 +14,14 @@ curr_dir = os.getcwd() #make sure I'm in CNN project folder
 # '/workspaces/neuralnets/projects/1-CNN' (equiv to PATH var below)
 train_dir = os.path.join(curr_dir, 'images/train')
 # '/workspaces/neuralnets/projects/1-CNN/images/train'
-# there is a 'clock' and 'cclock' folder in here with 67 images a piece (2/3)
+# there is a 'clock' and 'cclock' folder in here with 60 images a piece (3/5)
 validation_dir = os.path.join(curr_dir, 'images/validation')
 # '/workspaces/neuralnets/projects/1-CNN/images/validation'
-# there is a 'clock' and 'cclock' folder in here with 33 images a piece (1/3)
-BATCH_SIZE = 67 #stick with one iteration for training and validation per optimal batch guidance here:
+# there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
+test_dir = os.path.join(curr_dir, 'images/test')
+# '/workspaces/neuralnets/projects/1-CNN/images/validation'
+# there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
+BATCH_SIZE = 60 #stick with one iteration for training and validation per optimal batch guidance here:
 # https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
 # practically, this means only one update of gradient and neural network parameters
 IMG_SIZE = (170, 170) #should all already be this size so probably redundant but good to be sure
@@ -32,6 +35,11 @@ validation_dataset = image_dataset_from_directory(validation_dir,
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 66 files belonging to 2 classes.
+test_dataset = image_dataset_from_directory(validation_dir,
+                                                  color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                                  shuffle=True,
+                                                  batch_size=BATCH_SIZE,
+                                                  image_size=IMG_SIZE) #Found 66 files belonging to 2 classes.
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -41,6 +49,15 @@ for images, labels in train_dataset.take(1): #load first iteration batch from tr
     plt.imshow(images[i].numpy().astype("uint8"),cmap='gray') #plot each image
     plt.title(class_names[labels[i]]) #output associated label for chosen image
     plt.axis("off")
+#if I need to use more than 100 images with multiple batches, I can do the following code. Otherwise, manually split to train/validate/test
+# #determine how many batches of data are available in the validation set using cardinality:
+# val_batches = tf.data.experimental.cardinality(validation_dataset)
+# # val_batches.numpy() #32 batches to accomodate all 1000 validation instances
+# test_dataset = validation_dataset.take(val_batches // 5) #take first 20% of the validation batches and save as test, size is 6
+# validation_dataset = validation_dataset.skip(val_batches // 5) #skips first 20%, size is 26
+# print('Number of validation batches: %d' % tf.data.experimental.cardinality(validation_dataset)) #26
+# print('Number of test batches: %d' % tf.data.experimental.cardinality(test_dataset)) #6
+
 
 #tutorial using images for customizing the pretrained model:
 from tensorflow.keras.preprocessing import image_dataset_from_directory
@@ -74,4 +91,10 @@ for images, labels in train_dataset.take(1): #load first iteration batch from tr
     plt.imshow(images[i].numpy().astype("uint8")) #plot each image
     plt.title(class_names[labels[i]]) #output associated label for chosen image
     plt.axis("off")
-
+#determine how many batches of data are available in the validation set using cardinality:
+val_batches = tf.data.experimental.cardinality(validation_dataset)
+#val_batches.numpy() #32 batches to accomodate all 1000 validation instances
+test_dataset = validation_dataset.take(val_batches // 5) #take first 20% of the validation batches and save as test, size is 6
+validation_dataset = validation_dataset.skip(val_batches // 5) #skips first 20%, size is 26
+print('Number of validation batches: %d' % tf.data.experimental.cardinality(validation_dataset)) #26
+print('Number of test batches: %d' % tf.data.experimental.cardinality(test_dataset)) #6
