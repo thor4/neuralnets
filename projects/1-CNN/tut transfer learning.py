@@ -63,6 +63,20 @@ AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynam
 train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+#MobileNetV2 expects images with pixel values [-1,1],  but our images are [0,255]. Need to rescale:
+preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input #this pre-processing method rescales input according to what MobileNetv2 expects
+#Now create the base model MobileNetV2 with pre-loaded weights trained on ImageNet
+
+# THIS IS A PROBLEM SINCE MOBILENETv2 EXPECTS 3 DIM of COLOR, not 1 which is what grayscale gives
+IMG_SHAPE = IMG_SIZE + (3,) #adds a third dimension of 3 to hold color channels ie: (170,170,3)
+base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                               include_top=False, #ensures classification layers at the top are not loaded, ideal for feature extraction
+                                               weights='imagenet')
+#This feature extractor converts each 160x160x3 image into a 5x5x1280 block of features. 
+# Let's see what it does to an example batch of images:
+image_batch, label_batch = next(iter(train_dataset)) #image_batch= (32,170,170,1), label_batch=(32,), 32 images
+feature_batch = base_model(image_batch)
+print(feature_batch.shape) #(32,5,5,1280) reduces total overal dimensionality of input images
 
 
 #tutorial using images for customizing the pretrained model:
@@ -109,3 +123,34 @@ AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynam
 train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+#now time to use data augmentation for tutorial purposes only, not needed on gabors
+data_augmentation = tf.keras.Sequential([ #define a keras model with 2 layers: horizontal and rotational flips
+  tf.keras.layers.experimental.preprocessing.RandomFlip('horizontal'),
+  tf.keras.layers.experimental.preprocessing.RandomRotation(0.2),
+]) #These layers are active only during training, when you call model.fit. Inactive when useed in inference mode in model.evaulate or model.fit.
+for image, _ in train_dataset.take(1):
+  plt.figure(figsize=(10, 10))
+  first_image = image[0]
+  for i in range(9):
+    ax = plt.subplot(3, 3, i + 1)
+    #expand to make 4d shape expected by RandomFlip/Rotation (samples, height, width, channels):
+    augmented_image = data_augmentation(tf.expand_dims(first_image, 0)) 
+    plt.imshow(augmented_image[0] / 255)
+    plt.axis('off')
+
+#MobileNetV2 expects images with pixel values [-1,1],  but our images are [0,255]. Need to rescale:
+preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input #this pre-processing method rescales input according to what MobileNetv2 expects
+#or could rescale pixel values from [0,255] to [-1, 1] using a Rescaling layer:
+#rescale = tf.keras.layers.experimental.preprocessing.Rescaling(1./127.5, offset= -1)
+#docs for above: https://www.tensorflow.org/api_docs/python/tf/keras/layers/experimental/preprocessing/Rescaling
+#when using other tf.keras.applications, be sure to check the API doc to determine if they expect pixels in [-1,1] or [0,1], or use the included preprocess_input function.
+#Now create the base model MobileNetV2 with pre-loaded weights trained on ImageNet
+IMG_SHAPE = IMG_SIZE + (3,) #adds a third dimension of 3 to hold color channels ie: (160,160,3)
+base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                               include_top=False, #ensures classification layers at the top are not loaded, ideal for feature extraction
+                                               weights='imagenet')
+#This feature extractor converts each 160x160x3 image into a 5x5x1280 block of features. 
+# Let's see what it does to an example batch of images:
+image_batch, label_batch = next(iter(train_dataset)) #image_batch= (32,160,160,3), label_batch=(32,), 32 images
+feature_batch = base_model(image_batch)
+print(feature_batch.shape) #(32,5,5,1280) reduces total overal dimensionality of input images
