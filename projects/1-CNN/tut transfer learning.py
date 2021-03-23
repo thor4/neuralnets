@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 tf.__version__ #2.4.0
 
@@ -24,19 +25,19 @@ test_dir = os.path.join(curr_dir, 'images/test')
 BATCH_SIZE = 32 #stick with one iteration for training and validation per optimal batch guidance here:
 # https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
 # practically, this means only one update of gradient and neural network parameters
-IMG_SIZE = (170, 170) #should all already be this size so probably redundant but good to be sure
+IMG_SIZE = (160, 160) #forces a resize from 170x170 since MobileNetV2 has weights only for certain sizes
 train_dataset = image_dataset_from_directory(train_dir,
-                                             color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                             #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
 validation_dataset = image_dataset_from_directory(validation_dir,
-                                                  color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
 test_dataset = image_dataset_from_directory(test_dir,
-                                                  color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
@@ -66,21 +67,77 @@ test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an opt
 #MobileNetV2 expects images with pixel values [-1,1],  but our images are [0,255]. Need to rescale:
 preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input #this pre-processing method rescales input according to what MobileNetv2 expects
 #Now create the base model MobileNetV2 with pre-loaded weights trained on ImageNet
-
-# THIS IS A PROBLEM SINCE MOBILENETv2 EXPECTS 3 DIM of COLOR, not 1 which is what grayscale gives
-IMG_SHAPE = IMG_SIZE + (3,) #adds a third dimension of 3 to hold color channels ie: (170,170,3)
-base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+IMG_SHAPE = IMG_SIZE + (3,) #adds a third dimension of 3 to hold color channels ie: (160,160,3)
+base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE, #needs one of these sizes: [96, 128, 160, 192, 224]
                                                include_top=False, #ensures classification layers at the top are not loaded, ideal for feature extraction
-                                               weights='imagenet')
+                                               weights='imagenet') #has weights for each preferred size
 #This feature extractor converts each 160x160x3 image into a 5x5x1280 block of features. 
 # Let's see what it does to an example batch of images:
 image_batch, label_batch = next(iter(train_dataset)) #image_batch= (32,170,170,1), label_batch=(32,), 32 images
-feature_batch = base_model(image_batch)
+feature_batch = base_model(image_batch) #extract features from one batch of images
 print(feature_batch.shape) #(32,5,5,1280) reduces total overal dimensionality of input images
+#the base_model is now considered the convolutional base model. we will freeze its layers so the weights do not change during training
+base_model.trainable = False #freezes entire model so no weights get updated
+# Let's take a look at the base model architecture
+base_model.summary() #Total params: 2,257,984, all non-trainable
+global_average_layer = tf.keras.layers.GlobalAveragePooling2D() #create layer to avg over the middle 5x5 dimensions leaving 2d
+feature_batch_average = global_average_layer(feature_batch) #avg over 5,5 leaving 32,1280
+print(feature_batch_average.shape) #(32,1280)
+#now create a layer that will generate a single prediction per image using logits. positive means class 1, neg class 2
+prediction_layer = tf.keras.layers.Dense(1) #create a densely-connected NN layer with a single logit output prediction
+prediction_batch = prediction_layer(feature_batch_average) #generate predictions for first batch of training images
+print(prediction_batch.shape) #(32,1) 32 logits predicting clockwise or counterclockwise
+#now time to build a new model by chaining together the rescaling, base_model and feature extractors using the Keras Functional API
+inputs = tf.keras.Input(shape=(160, 160, 3)) #ensure input size is one of the predefined MobileNetV2 requires
+x = preprocess_input(inputs) #rescale the images to [-1,1]
+x = base_model(x, training=False) #process images through convolutional base with training=False to ensure batchNorm layer weights stay locked
+x = global_average_layer(x) #extract features by avg over spatial 5x5 dim's leaving (32,1280)
+x = tf.keras.layers.Dropout(0.2)(x) #add dropout layer which randomly drop 20% of the input to prevent overfitting during training (turns some nodes off)
+outputs = prediction_layer(x) #define output as single prediction
+model = tf.keras.Model(inputs, outputs) #build the model
+base_learning_rate = 0.0001 #define the learning rate
+model.compile(optimizer=tf.keras.optimizers.Adam(lr=base_learning_rate), #now compile before training
+              loss=tf.keras.losses.BinaryCrossentropy(from_logits=True), #use this loss since model provides a linear output
+              metrics=['accuracy'])
+model.summary() #Total params: 2,259,265, Trainable params: 1,281, Non-trainable params: 2,257,984
+#the only trainable parameters are in the last layer between the global pooling 1280 node (which has dropout applied to it) and the dense single-node prediction layer
+len(model.trainable_variables) #the 1281 trainable parameters are divided between 2 tf.variables: weights (1280) and biases (1)
+initial_epochs = 10 #define training epochs
+loss0, accuracy0 = model.evaluate(validation_dataset) #obtain initial performance on 2 validation batches
+print("initial loss: {:.2f}".format(loss0)) #0.72
+print("initial accuracy: {:.2f}".format(accuracy0)) #0.47
+history = model.fit(train_dataset, #trains the model using the training dataset
+                    epochs=initial_epochs, #runs specified number of iterations over all training batches
+                    validation_data=validation_dataset) #tests against validation dataset after each iteration
+#now visualize results of using the MobileNetV2 base model as a fixed feature extractor
+acc = history.history['accuracy'] #extract and store history of accuracy scores on training set as list
+val_acc = history.history['val_accuracy'] #extract and store history of accuracy scores on validation set as list
+loss = history.history['loss'] #extract and store history of loss scores on training set as list
+val_loss = history.history['val_loss'] #extract and store history of losss scores on validation set as list
+plt.figure(figsize=(8, 8))
+plt.subplot(2, 1, 1)
+plt.plot(acc, label='Training Accuracy')
+plt.plot(val_acc, label='Validation Accuracy')
+plt.legend(loc='lower right')
+plt.ylabel('Accuracy')
+plt.ylim([min(plt.ylim()),1])
+plt.title('Training and Validation Accuracy')
+plt.subplot(2, 1, 2)
+plt.plot(loss, label='Training Loss')
+plt.plot(val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.ylabel('Cross Entropy')
+plt.ylim([0,1.0])
+plt.title('Training and Validation Loss')
+plt.xlabel('epoch')
+plt.show() #accuracy trends up over time and the loss goes down
+# If you are wondering why the validation metrics are clearly better than the training metrics, the main factor is because 
+# layers like tf.keras.layers.BatchNormalization and tf.keras.layers.Dropout affect accuracy during training. 
+# They are turned off when calculating validation loss. To a lesser extent, it is also because training metrics report the 
+# average for an epoch, while validation metrics are evaluated after the epoch, so validation metrics see a model that has trained slightly longer.
 
 
 #tutorial using images for customizing the pretrained model:
-from tensorflow.keras.preprocessing import image_dataset_from_directory
 _URL = 'https://storage.googleapis.com/mledu-datasets/cats_and_dogs_filtered.zip'
 path_to_zip = tf.keras.utils.get_file('cats_and_dogs.zip', origin=_URL, extract=True)
 # '/home/jovyan/.keras/datasets/cats_and_dogs.zip'
@@ -152,5 +209,65 @@ base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
 #This feature extractor converts each 160x160x3 image into a 5x5x1280 block of features. 
 # Let's see what it does to an example batch of images:
 image_batch, label_batch = next(iter(train_dataset)) #image_batch= (32,160,160,3), label_batch=(32,), 32 images
-feature_batch = base_model(image_batch)
+feature_batch = base_model(image_batch) #extract features from one batch of images
 print(feature_batch.shape) #(32,5,5,1280) reduces total overal dimensionality of input images
+#the base_model is now considered the convolutional base model. we will freeze its layers so the weights do not change during training
+base_model.trainable = False #freezes entire model so no weights get updated
+# Let's take a look at the base model architecture
+base_model.summary() #Total params: 2,257,984
+global_average_layer = tf.keras.layers.GlobalAveragePooling2D() #create layer to avg over the middle 5x5 dimensions leaving 2d
+feature_batch_average = global_average_layer(feature_batch) #avg over 5,5 leaving 32,1280
+print(feature_batch_average.shape) #(32,1280)
+#now create a layer that will generate a single prediction per image using logits. positive means class 1, neg class 2
+prediction_layer = tf.keras.layers.Dense(1) #create a densely-connected NN layer with a single logit output prediction
+prediction_batch = prediction_layer(feature_batch_average) #generate predictions for first batch of training images
+print(prediction_batch.shape) #(32,1) 32 logits predicting cat or dog
+#now time to build a new model by chaining together the data augmentation, rescaling, base_model and feature extractors using the Keras Functional API
+inputs = tf.keras.Input(shape=(160, 160, 3)) #ensure input size is one of the predefined MobileNetV2 requires
+x = data_augmentation(inputs) #flip/rotate to increase images
+x = preprocess_input(x) #rescale the images to [-1,1]
+x = base_model(x, training=False) #process images through convolutional base with training=False to ensure batchNorm layer weights stay locked
+x = global_average_layer(x) #extract features by avg over spatial 5x5 dim's leaving (32,1280)
+x = tf.keras.layers.Dropout(0.2)(x) #add dropout layer which randomly drop 20% of the input to prevent overfitting during training (turns some nodes off)
+outputs = prediction_layer(x) #define output as single prediction
+model = tf.keras.Model(inputs, outputs) #build the model
+base_learning_rate = 0.0001 #define the learning rate
+model.compile(optimizer=tf.keras.optimizers.Adam(lr=base_learning_rate), #now compile before training
+              loss=tf.keras.losses.BinaryCrossentropy(from_logits=True), #use this loss since model provides a linear output
+              metrics=['accuracy'])
+model.summary() #Total params: 2,259,265, Trainable params: 1,281, Non-trainable params: 2,257,984
+#the only trainable parameters are in the last layer between the global pooling 1280 node (which has dropout applied to it) and the dense single-node prediction layer
+len(model.trainable_variables) #the 1281 trainable parameters are divided between 2 tf.variables: weights (1280) and biases (1)
+initial_epochs = 10 #define training epochs
+loss0, accuracy0 = model.evaluate(validation_dataset) #obtain initial performance on 26 validation batches
+print("initial loss: {:.2f}".format(loss0)) #0.61
+print("initial accuracy: {:.2f}".format(accuracy0)) #0.60
+history = model.fit(train_dataset, #trains the model using the training dataset
+                    epochs=initial_epochs, #runs specified number of iterations over all training batches
+                    validation_data=validation_dataset) #tests against validation dataset after each iteration
+#now visualize results of using the MobileNetV2 base model as a fixed feature extractor
+acc = history.history['accuracy'] #extract and store history of accuracy scores on training set as list
+val_acc = history.history['val_accuracy'] #extract and store history of accuracy scores on validation set as list
+loss = history.history['loss'] #extract and store history of loss scores on training set as list
+val_loss = history.history['val_loss'] #extract and store history of losss scores on validation set as list
+plt.figure(figsize=(8, 8))
+plt.subplot(2, 1, 1)
+plt.plot(acc, label='Training Accuracy')
+plt.plot(val_acc, label='Validation Accuracy')
+plt.legend(loc='lower right')
+plt.ylabel('Accuracy')
+plt.ylim([min(plt.ylim()),1])
+plt.title('Training and Validation Accuracy')
+plt.subplot(2, 1, 2)
+plt.plot(loss, label='Training Loss')
+plt.plot(val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.ylabel('Cross Entropy')
+plt.ylim([0,1.0])
+plt.title('Training and Validation Loss')
+plt.xlabel('epoch')
+plt.show() #accuracy trends up over time and the loss goes down
+# If you are wondering why the validation metrics are clearly better than the training metrics, the main factor is because 
+# layers like tf.keras.layers.BatchNormalization and tf.keras.layers.Dropout affect accuracy during training. 
+# They are turned off when calculating validation loss. To a lesser extent, it is also because training metrics report the 
+# average for an epoch, while validation metrics are evaluated after the epoch, so validation metrics see a model that has trained slightly longer.
