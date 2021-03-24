@@ -18,7 +18,7 @@ tilt = 2.26*(pi/180); %avg tilt used in exp, degrees->radians: *(pi/180)
 %p.tilts = [middle_tilt/2, middle_tilt, 2*middle_tilt];
 %Middle tilt = 2.26 # supposed to yield 75% accuracy, this is in degrees
 counter_tilt = orientation - tilt; clock_tilt = orientation + tilt; 
-num_gabors = 100; %define total number of gabors to make for each class
+num_gabors = 10000; %define total number of gabors to make for each class
 n_train_gabor = floor(num_gabors*(2/3)); %number of training gabor images
 n_valid_gabor = floor(0.8*(num_gabors-n_train_gabor)); %number of validation gabor images
 n_test_gabor = num_gabors - n_train_gabor - n_valid_gabor;
