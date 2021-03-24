@@ -31,19 +31,19 @@ train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
-                                             #now its 132 files
+                                             #now its 132 files, 13332
 validation_dataset = image_dataset_from_directory(validation_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 54 files
+                                                  #now its 54 files, 5334
 test_dataset = image_dataset_from_directory(test_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 14 files
+                                                  #now its 14 files, 1334
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -107,8 +107,8 @@ model.summary() #Total params: 2,259,265, Trainable params: 1,281, Non-trainable
 len(model.trainable_variables) #the 1281 trainable parameters are divided between 2 tf.variables: weights (1280) and biases (1)
 initial_epochs = 10 #define training epochs
 loss0, accuracy0 = model.evaluate(validation_dataset) #obtain initial performance on 2 validation batches
-print("initial loss: {:.2f}".format(loss0)) #0.72 (100 images, con 0.45), 1.37 (100 im, con 1)
-print("initial accuracy: {:.2f}".format(accuracy0)) #0.47 (100 im, con 0.45), 0.5 (100 im, con 1)
+print("initial loss: {:.2f}".format(loss0)) #0.72 (100 images, con 0.45), 1.37 (100 im, con 1), 1.04 (10k im, con1)
+print("initial accuracy: {:.2f}".format(accuracy0)) #0.47 (100 im, con 0.45), 0.5 (100 im, con 1), 0.5 (10k im, con1)
 history = model.fit(train_dataset, #trains the model using the training dataset
                     epochs=initial_epochs, #runs specified number of iterations over all training batches
                     validation_data=validation_dataset) #tests against validation dataset after each iteration
@@ -138,6 +138,8 @@ plt.show() #accuracy trends up over time and the loss goes down
 # layers like tf.keras.layers.BatchNormalization and tf.keras.layers.Dropout affect accuracy during training. 
 # They are turned off when calculating validation loss. To a lesser extent, it is also because training metrics report the 
 # average for an epoch, while validation metrics are evaluated after the epoch, so validation metrics see a model that has trained slightly longer.
+# Save the entire model as a SavedModel.
+model.save('models/10kim_1con') #save the trained model into the 10kim 1con folder
 
 
 
