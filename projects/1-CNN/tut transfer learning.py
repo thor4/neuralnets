@@ -94,10 +94,14 @@ base_model.summary() #Total params: 2,257,984
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D() #create layer to avg over the middle 5x5 dimensions leaving 2d
 feature_batch_average = global_average_layer(feature_batch) #avg over 5,5 leaving 32,1280
 print(feature_batch_average.shape) #(32,1280)
+plt.hist(np.array(feature_batch_average)[31]) #mainly between 0-5.3, with most between 0-1
+
 #now create a layer that will generate a single prediction per image using logits. positive means class 1, neg class 2
 prediction_layer = tf.keras.layers.Dense(1) #create a densely-connected NN layer with a single logit output prediction
 prediction_batch = prediction_layer(feature_batch_average) #generate predictions for first batch of training images
 print(prediction_batch.shape) #(32,1) 32 logits predicting cat or dog
+plt.hist(np.array(prediction_batch)) #mainly between -3.2-0.3, with most between -3 & -1
+
 #now time to build a new model by chaining together the data augmentation, rescaling, base_model and feature extractors using the Keras Functional API
 inputs = tf.keras.Input(shape=(160, 160, 3)) #ensure input size is one of the predefined MobileNetV2 requires
 x = data_augmentation(inputs) #flip/rotate to increase images
