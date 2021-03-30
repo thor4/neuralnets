@@ -9,6 +9,10 @@ from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 tf.__version__ #2.4.0
 
+#clear workspace variables in iPython:
+%reset 
+
+
 #my own images for customizing the pretrained model:
 #import pathlib
 curr_dir = os.getcwd() #make sure I'm in CNN project folder
@@ -145,3 +149,90 @@ model = tf.keras.models.load_model('models/10kim_1con') #load previously trained
 #after loading, the convolutional base model weights need to be frozen:
 model.get_layer(name='mobilenetv2_1.00_160').trainable=False #get mobilenet base then freeze it
 model.summary() #verify architecture, trainable: 1,281 params between last two layers
+
+#now time for fine-tuning the model where we train the weights of the top layers of the conv base model concurrently with the classifier
+#The goal of fine-tuning is to adapt specialized features found in the highest layers to work 
+#with the new dataset, rather than overwrite the generic learning found in the lowest layers
+#make sure the classifier is trained on the new dataset first. otherwise if you try with randomly initialized weights in the classifier, 
+#the gradient updates will be too large and the pre-trained conv model will forget what it learned
+model.get_layer(name='mobilenetv2_1.00_160').trainable=True #first, unfreeze the base convolutional model
+print("Number of layers in the base model: ", len(model.get_layer(name='mobilenetv2_1.00_160').layers)) #how many layers are in the base model (154)
+fine_tune_at = 100 #fine-tune from this layer onwards
+for layer in model.get_layer(name='mobilenetv2_1.00_160').layers[:fine_tune_at]: # freeze all the layers before the `fine_tune_at` layer
+  layer.trainable =  False
+base_learning_rate = 0.0001 #define the learning rate
+#we have set the bottom layers (1-99 inclusive) to be untrainable. now recompile so changes take effect
+model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+              optimizer = tf.keras.optimizers.RMSprop(lr=base_learning_rate/10), #use lower rate since model is much larger and want to avoid overfitting
+              metrics=['accuracy'])
+model.summary() #now we have 1,862,721 trainable parameters
+len(model.trainable_variables) #this includes 56 total variables
+fine_tune_epochs = 10 #define additional epochs for fine_tuning
+#total_epochs =  initial_epochs + fine_tune_epochs
+history_fine = model.fit(train_dataset,
+                         #epochs=total_epochs,
+                         epochs=fine_tune_epochs,
+                         #initial_epoch=history.epoch[-1], #start from last epoch
+                         validation_data=validation_dataset)
+#if the validation loss is much higher than the training loss, you may get some overfitting
+#also get some overfitting if the new training set is relatively small and similar to the original MobileNet V2 datasets
+# acc += history_fine.history['accuracy'] #extract and append fine_tune history of accuracy scores on training set as list
+# val_acc += history_fine.history['val_accuracy'] #same as above but for validation set
+# loss += history_fine.history['loss'] #same as above but loss instead of acc
+# val_loss += history_fine.history['val_loss'] #same as above
+# plt.figure(figsize=(8, 8))
+# plt.subplot(2, 1, 1)
+# plt.plot(acc, label='Training Accuracy')
+# plt.plot(val_acc, label='Validation Accuracy')
+# plt.ylim([0.8, 1]) #zoom in on one section of plot
+# plt.plot([initial_epochs-1,initial_epochs-1],
+#           plt.ylim(), label='Start Fine Tuning')
+# plt.legend(loc='lower right')
+# plt.title('Training and Validation Accuracy')
+
+# plt.subplot(2, 1, 2)
+# plt.plot(loss, label='Training Loss')
+# plt.plot(val_loss, label='Validation Loss')
+# plt.ylim([0, 1.0])
+# plt.plot([initial_epochs-1,initial_epochs-1],
+#          plt.ylim(), label='Start Fine Tuning')
+# plt.legend(loc='upper right')
+# plt.title('Training and Validation Loss')
+# plt.xlabel('epoch')
+# plt.show() #~98% accuracy on validation set
+acc = history_fine.history['accuracy'] #extract and store history of accuracy scores on training set as list
+val_acc = history_fine.history['val_accuracy'] #extract and store history of accuracy scores on validation set as list
+loss = history_fine.history['loss'] #extract and store history of loss scores on training set as list
+val_loss = history_fine.history['val_loss'] #extract and store history of losss scores on validation set as list
+plt.figure(figsize=(8, 8))
+plt.subplot(2, 1, 1)
+plt.plot(acc, label='Training Accuracy')
+plt.plot(val_acc, label='Validation Accuracy')
+plt.legend(loc='lower right')
+plt.ylabel('Accuracy')
+plt.ylim([min(plt.ylim()),1])
+plt.title('Training and Validation Accuracy')
+plt.subplot(2, 1, 2)
+plt.plot(loss, label='Training Loss')
+plt.plot(val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.ylabel('Cross Entropy')
+plt.ylim([0,1.0])
+plt.title('Training and Validation Loss')
+plt.xlabel('epoch')
+plt.show() #accuracy trends up over time and the loss goes down
+loss, accuracy = model.evaluate(test_dataset) #now test the model's performance on the test set
+print('Test accuracy :', accuracy) #100% accuracy
+#Retrieve a batch of images from the test set
+image_batch, label_batch = test_dataset.as_numpy_iterator().next()
+predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+print('Predictions:\n', predictions.numpy())
+print('Labels:\n', label_batch) #nice job predicting
+plt.figure(figsize=(10, 10))
+for i in range(9):
+  ax = plt.subplot(3, 3, i + 1)
+  plt.imshow(image_batch[i].astype("uint8")) #plot from test set
+  plt.title(class_names[predictions[i]]) #apply labels from prediction set
+  plt.axis("off")
