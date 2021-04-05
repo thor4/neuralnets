@@ -150,6 +150,9 @@ model = tf.keras.models.load_model('models/10kim_1con') #load previously trained
 model.get_layer(name='mobilenetv2_1.00_160').trainable=False #get mobilenet base then freeze it
 model.summary() #verify architecture, trainable: 1,281 params between last two layers
 
+model.get_layer(name='dense_3').input_shape #gets last layer to confirm input (None,1280) features
+model.get_layer(name='dense_3').output_shape #confirm output is a single logit
+
 #now time for fine-tuning the model where we train the weights of the top layers of the conv base model concurrently with the classifier
 #The goal of fine-tuning is to adapt specialized features found in the highest layers to work 
 #with the new dataset, rather than overwrite the generic learning found in the lowest layers
@@ -226,6 +229,8 @@ print('Test accuracy :', accuracy) #100% accuracy
 #Retrieve a batch of images from the test set
 image_batch, label_batch = test_dataset.as_numpy_iterator().next()
 predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+plt.hist(np.array(predictions)) #mainly between -30 - 30. pick thresholds of -20 and 20
+
 predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
 predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
 print('Predictions:\n', predictions.numpy())
