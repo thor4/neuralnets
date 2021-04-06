@@ -47,7 +47,7 @@ test_dataset = image_dataset_from_directory(test_dir,
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 14 files, 1334
+                                                  #now its 14 files, 1334 files
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -230,11 +230,25 @@ print('Test accuracy :', accuracy) #100% accuracy
 image_batch, label_batch = test_dataset.as_numpy_iterator().next()
 predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
 plt.hist(np.array(predictions)) #mainly between -30 - 30. pick thresholds of -20 and 20
-
+threshold = tf.math.logical_or(predictions < -20, predictions > 20) #set conf threshold at -20 and 20
+confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
 predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
 predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
 print('Predictions:\n', predictions.numpy())
 print('Labels:\n', label_batch) #nice job predicting
+accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+
+high_conf_cor = tf.math.logical_and(tf.dtypes.cast(accuracy, tf.bool), tf.dtypes.cast(confidence, tf.bool)) #use bool AND to get high conf + correct resp
+#now need to make low_conf_cor and high_conf_inc and low_conf_inc I think
+
+x = tf.constant([1.8, 2.2], dtype=tf.float32)
+tf.dtypes.cast(x, tf.int32)
+
+
+for i in test_dataset.as_numpy_iterator():
+    print(type(i))
+
+
 plt.figure(figsize=(10, 10))
 for i in range(9):
   ax = plt.subplot(3, 3, i + 1)
