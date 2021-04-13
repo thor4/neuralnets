@@ -236,6 +236,7 @@ plt.hist(np.array(predictions)) #mainly between -30 - 30. pick thresholds of -20
 threshold = tf.math.logical_or(predictions < -20, predictions > 20) #set conf threshold at -20 and 20
 confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
 
+
 #test=tf.math.bincount(confidence) #total count of low and high conf
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float16)) #avg of high conf
 low_conf_avg = 1 - high_conf_avg
@@ -256,6 +257,20 @@ tf.dtypes.cast(x, tf.int32)
 
 for i in test_dataset.as_numpy_iterator():
     print(type(i))
+for element in test_dataset:
+    print(element)
+list(test_dataset.as_numpy_iterator())
+
+all_conf=tf.zeros([32,], tf.int32) #initialize array to hold all confidence ratings
+
+for image_batch, label_batch in test_dataset.as_numpy_iterator():
+    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+    threshold = tf.math.logical_or(predictions < -20, predictions > 20) #set conf threshold at -20 and 20
+    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+    all_conf = tf.concat([all_conf, confidence], 0) #append 
+
+#need to figure out how to remove the first 32 zeroes from original iniitalization
+#maybe slice: https://www.tensorflow.org/api_docs/python/tf/slice
 
 
 plt.figure(figsize=(10, 10))
