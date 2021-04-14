@@ -102,6 +102,9 @@ prediction_batch = prediction_layer(feature_batch_average) #generate predictions
 print(prediction_batch.shape) #(32,1) 32 logits predicting cat or dog
 plt.hist(np.array(prediction_batch)) #mainly between -3.2-0.3, with most between -3 & -1
 
+prediction_layer.input_shape #takes in (None, 1280) features
+prediction_layer.output_shape #outputs a single value
+
 #now time to build a new model by chaining together the data augmentation, rescaling, base_model and feature extractors using the Keras Functional API
 inputs = tf.keras.Input(shape=(160, 160, 3)) #ensure input size is one of the predefined MobileNetV2 requires
 x = data_augmentation(inputs) #flip/rotate to increase images
