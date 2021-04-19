@@ -35,19 +35,19 @@ train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
-                                             #now its 132 files, 13332
+                                             #now its 132 files, 13332 images (10k/20k tot db)
 validation_dataset = image_dataset_from_directory(validation_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 54 files, 5334
+                                                  #now its 54 files, 5334 images (10k/20k tot db)
 test_dataset = image_dataset_from_directory(test_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 14 files, 1334 files
+                                                  #now its 14 files, 1334 images (10k/20k tot db)
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -145,7 +145,7 @@ plt.show() #accuracy trends up over time and the loss goes down
 # Save the entire model as a SavedModel.
 model.save('models/10kim_1con') #save the trained model into the 10kim 1con folder
 
-model = tf.keras.models.load_model('models/10kim_1con') #load previously trained model
+model = tf.keras.models.load_model('models/10kim_1con') #load previously trained model (not fine-tuned)
 #after loading, the convolutional base model weights need to be frozen:
 model.get_layer(name='mobilenetv2_1.00_160').trainable=False #get mobilenet base then freeze it
 model.summary() #verify architecture, trainable: 1,281 params between last two layers
@@ -228,19 +228,27 @@ loss, accuracy = model.evaluate(test_dataset) #now test the model's performance 
 print('Test accuracy :', accuracy) #100% accuracy
 model.save('models/10kim_1con_ft') #save the fine-tuned model into the 10kim 1con ft folder
 
+#model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
+
+#plot images with predictions from test dataset
+plt.figure(figsize=(10, 10))
+for i in range(9):
+  ax = plt.subplot(3, 3, i + 1)
+  plt.imshow(image_batch[i].astype("uint8")) #plot from test set
+  plt.title(class_names[predictions[i]]) #apply labels from prediction set
+  plt.axis("off")
 
 #Retrieve a batch of images from the test set
 image_batch, label_batch = test_dataset.as_numpy_iterator().next()
 predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-plt.hist(np.array(predictions)) #mainly between -30 - 30. pick thresholds of -20 and 20, change to -5,5
-threshold = tf.math.logical_or(predictions < -20, predictions > 20) #set conf threshold at -20 and 20
+plt.hist(np.array(predictions)) #fine-tune: [-30,30] thres: 20, non ft: [-5,5] thres: 2
+threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold
+#instead of a single threshold, could make this an activation function like sigmoid or softmax
 confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
 
-#test=tf.math.bincount(confidence) #total count of low and high conf
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float16)) #avg of high conf
 low_conf_avg = 1 - high_conf_avg
 
-#need to figure out how to stack all the confidence ratings from each batch together across entire test set
 
 predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
 predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
@@ -250,17 +258,35 @@ accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and inc
 
 #high_conf_cor = tf.math.logical_and(tf.dtypes.cast(accuracy, tf.bool), tf.dtypes.cast(confidence, tf.bool)) #use bool AND to get high conf + correct resp
 
-x = tf.constant([1.8, 2.2], dtype=tf.float32)
-tf.dtypes.cast(x, tf.int32)
+all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
+all_pred=tf.zeros([], tf.int32) #initialize array to hold all prediction logits (single element)
+all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
+
+for image_batch, label_batch in test_dataset.as_numpy_iterator():
+    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+    threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
+    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+    all_conf = tf.experimental.numpy.append(all_conf, confidence)
+    all_pred = tf.experimental.numpy.append(all_pred, predictions)
+    predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+    predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+    accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+    all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+#tf.size(all_conf) #1335 elements, 1334 images + 1 placeholder 0 at beginning
+all_conf = all_conf[1:]
+all_pred = all_pred[1:]
+all_acc = all_acc[1:]  #drop first placeholder element
+high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
+low_conf_avg = 1 - high_conf_avg
+avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
+
+print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
+print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+
+#next, generate images with different combinations of contrast + tilt 3x3
+#create dataset for each and run through loop to get avg high/low conf + acc for non-finetuned model trained on 20k 1 con, 2.26 tilt images
+#export to table for doby
 
 
-for i in test_dataset.as_numpy_iterator():
-    print(type(i))
 
-
-plt.figure(figsize=(10, 10))
-for i in range(9):
-  ax = plt.subplot(3, 3, i + 1)
-  plt.imshow(image_batch[i].astype("uint8")) #plot from test set
-  plt.title(class_names[predictions[i]]) #apply labels from prediction set
-  plt.axis("off")
