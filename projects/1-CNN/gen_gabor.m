@@ -5,6 +5,8 @@
 % func args: makeGaborPatch(width,nGaussianSDs,contrastFraction,contrastNoise,gratingPeriod,gratingPeriodUnits,orientation,black,white)
 % to get example 'p' var: load('results11_10_50.mat')
 
+% this is what generated the data to train the 10,000 image model
+
 %match all aspects of gabors from experiment
 width = 169 ; % p.stimSize in pixels 
 nGaussianSDs = [] ; %default in exp (6)
