@@ -20,7 +20,7 @@ tilts = [tilt_deg/2*(pi/180) tilt_deg*(pi/180) tilt_deg*2*(pi/180)]; %tilts used
 %p.tilts = [middle_tilt/2 (1.13), middle_tilt (2.26), 2*middle_tilt (4.52)];
 %Middle tilt = 2.26 # supposed to yield 75% accuracy, this is in degrees
 %choose which set to generate:
-set = 9;
+set = 3;
 %set1: tilt2.26 con1, set2: tilt2.26 con0.3, set3: tilt2.26 con0.45
 %set4: tilt1.13 con1, set5: tilt1.13 con0.3, set6: tilt1.13 con0.45
 %set7: tilt4.52 con1, set8: tilt4.52 con0.3, set9: tilt4.52 con0.45
