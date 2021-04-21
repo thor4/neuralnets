@@ -288,5 +288,13 @@ print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (
 #create dataset for each and run through loop to get avg high/low conf + acc for non-finetuned model trained on 20k 1 con, 2.26 tilt images
 #export to table for doby
 
+#1334 imgaes w tilt 2.26, contrast 1:
+#High Confidence: 0.503, Low Confidence: 0.497, Accuracy: 0.965
 
 
+dataset = image_dataset_from_directory(test_dir,
+                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+                                                  shuffle=True,
+                                                  batch_size=BATCH_SIZE,
+                                                  image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
+dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
