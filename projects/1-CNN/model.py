@@ -292,7 +292,7 @@ print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (
 #High Confidence: 0.503, Low Confidence: 0.497, Accuracy: 0.965
 
 curr_dir = os.getcwd() #make sure I'm in CNN project folder
-set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26_c_1')
+set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26-c_1')
 set2_dir = os.path.join(curr_dir, 'images/set2-t_2.26-c_0.3')
 set3_dir = os.path.join(curr_dir, 'images/set3-t_2.26-c_0.45')
 set4_dir = os.path.join(curr_dir, 'images/set4-t_1.13-c_1')
@@ -320,7 +320,26 @@ set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of b
 set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
-current_set = set1 #define set to process. must do all nine, one at a time
+current_set = set9 #define set to process. must do all nine, one at a time
 
-loss, accuracy = model.evaluate(current_set) #now test the model's performance on the test set
-print('Test accuracy :', accuracy) #100% accuracy
+loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
+for image_batch, label_batch in current_set.as_numpy_iterator():
+    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+    threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
+    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+    all_conf = tf.experimental.numpy.append(all_conf, confidence)
+    all_pred = tf.experimental.numpy.append(all_pred, predictions)
+    predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+    predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+    accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+    all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+all_conf = all_conf[1:]
+all_pred = all_pred[1:]
+all_acc = all_acc[1:]  #drop first placeholder element
+high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
+low_conf_avg = 1 - high_conf_avg
+avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
+print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
+print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
