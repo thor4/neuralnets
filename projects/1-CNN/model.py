@@ -291,10 +291,36 @@ print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (
 #1334 imgaes w tilt 2.26, contrast 1:
 #High Confidence: 0.503, Low Confidence: 0.497, Accuracy: 0.965
 
+curr_dir = os.getcwd() #make sure I'm in CNN project folder
+set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26_c_1')
+set2_dir = os.path.join(curr_dir, 'images/set2-t_2.26-c_0.3')
+set3_dir = os.path.join(curr_dir, 'images/set3-t_2.26-c_0.45')
+set4_dir = os.path.join(curr_dir, 'images/set4-t_1.13-c_1')
+set5_dir = os.path.join(curr_dir, 'images/set5-t_1.13-c_0.3')
+set6_dir = os.path.join(curr_dir, 'images/set6-t_1.13-c_0.45')
+set7_dir = os.path.join(curr_dir, 'images/set7-t_4.52-c_1')
+set8_dir = os.path.join(curr_dir, 'images/set8-t_4.52-c_0.3')
+set9_dir = os.path.join(curr_dir, 'images/set9-t_4.52-c_0.45')
+set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
-dataset = image_dataset_from_directory(test_dir,
-                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
-                                                  shuffle=True,
-                                                  batch_size=BATCH_SIZE,
-                                                  image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+current_set = set1 #define set to process. must do all nine, one at a time
+
+loss, accuracy = model.evaluate(current_set) #now test the model's performance on the test set
+print('Test accuracy :', accuracy) #100% accuracy
