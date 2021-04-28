@@ -18,6 +18,9 @@ orientation = pi/4; %radians (45 deg), add to / subtract from this to get classe
 tilt_deg = 2.26; %avg tilt in degrees
 tilts = [tilt_deg/2*(pi/180) tilt_deg*(pi/180) tilt_deg*2*(pi/180)]; %tilts used in exp, degrees->radians: *(pi/180)
 %p.tilts = [middle_tilt/2 (1.13), middle_tilt (2.26), 2*middle_tilt (4.52)];
+%middle_tilt = (p.practice{4}.finalTilt + p.practice{5}.finalTilt)/2; %uses
+%the participant's results from training to create their initial middle
+%tile
 %Middle tilt = 2.26 # supposed to yield 75% accuracy, this is in degrees
 %choose which set to generate:
 set = 3;
