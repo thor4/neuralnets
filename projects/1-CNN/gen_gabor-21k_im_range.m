@@ -29,10 +29,11 @@ n_valid_gabor = floor(0.8*(num_gabors-n_train_gabor)); %number of validation gab
 n_test_gabor = num_gabors - n_train_gabor - n_valid_gabor;
 imageN = 0; %initialize image counter
 
+tic
 for contrastN = 1:length(contrasts)
     contrast = contrasts(contrastN); %current contrast
     for tiltN = 1:length(tilts)
-        tilt=tilts(tiltN); counter_tilt=counter_tilts(tiltN); clock_tilt=clock_tilts(tiltN) %current tilt
+        tilt=tilts(tiltN); counter_tilt=counter_tilts(tiltN); clock_tilt=clock_tilts(tiltN); %current tilt
         for i=1:num_gabors
             gaborPatch_counter = uint8(makeGaborPatch(width,[],contrast,noise,...
                 gratingPeriod,gratingPeriodUnits,counter_tilt)); %counter clockwise
@@ -61,7 +62,7 @@ for contrastN = 1:length(contrasts)
 
     end
 end
-
+toc
 
 %generate and save gabor images of size width+1 x width+1 (170x170 .png's)
 
