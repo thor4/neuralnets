@@ -38,19 +38,19 @@ train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
-                                             #13332 images (10k/20k tot db), 13986 (range)
+                                             #13332 images (10k/20k tot db), 11988 (range)
 validation_dataset = image_dataset_from_directory(validation_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #5334 images (10k/20k tot db), 5586 (range)
+                                                  #5334 images (10k/20k tot db), 4788 (range)
 test_dataset = image_dataset_from_directory(test_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #1334 images (10k/20k tot db), 1428 (range)
+                                                  #1334 images (10k/20k tot db), 1224 (range)
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -154,8 +154,8 @@ model = tf.keras.models.load_model('models/10kim_1con') #load previously trained
 model.get_layer(name='mobilenetv2_1.00_160').trainable=False #get mobilenet base then freeze it
 model.summary() #verify architecture, trainable: 1,281 params between last two layers
 
-model.get_layer(name='dense_3').input_shape #gets last layer to confirm input (None,1280) features
-model.get_layer(name='dense_3').output_shape #confirm output is a single logit
+model.get_layer(name='dense').input_shape #gets last layer to confirm input (None,1280) features
+model.get_layer(name='dense').output_shape #confirm output is a single logit
 
 #now time for fine-tuning the model where we train the weights of the top layers of the conv base model concurrently with the classifier
 #The goal of fine-tuning is to adapt specialized features found in the highest layers to work 
@@ -231,6 +231,9 @@ plt.show() #accuracy trends up over time and the loss goes down
 loss, accuracy = model.evaluate(test_dataset) #now test the model's performance on the test set
 print('Test accuracy :', accuracy) #100% accuracy
 model.save('models/10kim_1con_ft') #save the fine-tuned model into the 10kim 1con ft folder
+#contrasts = [.3, .45, 1] & tilts = [.1, .2, .4, .8, 1.6, 3.2]:
+model.save('models/18kim_range_ft') #save the fine-tuned model into the 18kim range ft folder (ft=fine-tuned)
+
 
 #model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
 
