@@ -17,13 +17,16 @@ tf.__version__ #2.4.0
 #import pathlib
 curr_dir = os.getcwd() #make sure I'm in CNN project folder
 # '/workspaces/neuralnets/projects/1-CNN' (equiv to PATH var below)
-train_dir = os.path.join(curr_dir, 'images/train')
+# train_dir = os.path.join(curr_dir, 'images/train')
+train_dir = os.path.join(curr_dir, 'images/train_range') #range of tilts/contrasts
 # '/workspaces/neuralnets/projects/1-CNN/images/train'
 # there is a 'clock' and 'cclock' folder in here with 60 images a piece (3/5)
-validation_dir = os.path.join(curr_dir, 'images/validation')
+# validation_dir = os.path.join(curr_dir, 'images/validation')
+validation_dir = os.path.join(curr_dir, 'images/validation_range') #range of tilts/contrasts
 # '/workspaces/neuralnets/projects/1-CNN/images/validation'
 # there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
-test_dir = os.path.join(curr_dir, 'images/test')
+# test_dir = os.path.join(curr_dir, 'images/test')
+test_dir = os.path.join(curr_dir, 'images/test_range') #range of tilts/contrasts
 # '/workspaces/neuralnets/projects/1-CNN/images/validation'
 # there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
 BATCH_SIZE = 32 #stick with one iteration for training and validation per optimal batch guidance here:
@@ -35,19 +38,19 @@ train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
-                                             #now its 132 files, 13332 images (10k/20k tot db)
+                                             #13332 images (10k/20k tot db), 13986 (range)
 validation_dataset = image_dataset_from_directory(validation_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 54 files, 5334 images (10k/20k tot db)
+                                                  #5334 images (10k/20k tot db), 5586 (range)
 test_dataset = image_dataset_from_directory(test_dir,
                                                   #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
-                                                  #now its 14 files, 1334 images (10k/20k tot db)
+                                                  #1334 images (10k/20k tot db), 1428 (range)
 #show first nine images and labels from training set:
 class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
 plt.figure(figsize=(10, 10))
@@ -144,6 +147,7 @@ plt.show() #accuracy trends up over time and the loss goes down
 # average for an epoch, while validation metrics are evaluated after the epoch, so validation metrics see a model that has trained slightly longer.
 # Save the entire model as a SavedModel.
 model.save('models/10kim_1con') #save the trained model into the 10kim 1con folder
+#no need to save the range model since it's only 53.74% accurate
 
 model = tf.keras.models.load_model('models/10kim_1con') #load previously trained model (not fine-tuned)
 #after loading, the convolutional base model weights need to be frozen:
@@ -325,21 +329,21 @@ current_set = set9 #define set to process. must do all nine, one at a time
 loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
 for image_batch, label_batch in current_set.as_numpy_iterator():
     predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-    threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
-    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-    all_conf = tf.experimental.numpy.append(all_conf, confidence)
-    all_pred = tf.experimental.numpy.append(all_pred, predictions)
+    #threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
+    #confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+    #all_conf = tf.experimental.numpy.append(all_conf, confidence)
+    #all_pred = tf.experimental.numpy.append(all_pred, predictions)
     predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
     predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
     accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
     all_acc = tf.experimental.numpy.append(all_acc, accuracy)
-all_conf = all_conf[1:]
-all_pred = all_pred[1:]
+#all_conf = all_conf[1:]
+#all_pred = all_pred[1:]
 all_acc = all_acc[1:]  #drop first placeholder element
-high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
-low_conf_avg = 1 - high_conf_avg
+#high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
+#low_conf_avg = 1 - high_conf_avg
 avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
-print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
-print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
+#print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+#print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
 print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)

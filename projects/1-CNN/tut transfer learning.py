@@ -205,6 +205,7 @@ plt.xlabel('epoch')
 plt.show() #~98% accuracy on validation set
 loss, accuracy = model.evaluate(test_dataset) #now test the model's performance on the test set
 print('Test accuracy :', accuracy) #98.4375% accuracy
+
 #Retrieve a batch of images from the test set
 image_batch, label_batch = test_dataset.as_numpy_iterator().next()
 predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
@@ -218,3 +219,16 @@ for i in range(9):
   plt.imshow(image_batch[i].astype("uint8")) #plot from test set
   plt.title(class_names[predictions[i]]) #apply labels from prediction set
   plt.axis("off")
+
+##Section added for stackoverflow question
+
+all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
+for image_batch, label_batch in test_dataset.as_numpy_iterator():
+    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+    predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+    predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+    accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+    all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+all_acc = all_acc[1:]  #drop first placeholder element
+avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
+print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
