@@ -234,6 +234,8 @@ model.save('models/10kim_1con_ft') #save the fine-tuned model into the 10kim 1co
 #contrasts = [.3, .45, 1] & tilts = [.1, .2, .4, .8, 1.6, 3.2]:
 model.save('models/18kim_range_ft') #save the fine-tuned model into the 18kim range ft folder (ft=fine-tuned)
 
+model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model
+model.summary() #verify architecture, trainable: 2,225,153 params between last 100 layers
 
 #model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
 
@@ -248,12 +250,13 @@ for i in range(9):
 #Retrieve a batch of images from the test set
 image_batch, label_batch = test_dataset.as_numpy_iterator().next()
 predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-plt.hist(np.array(predictions)) #fine-tune: [-30,30] thres: 20, non ft: [-5,5] thres: 2
-threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold
+plt.hist(np.array(predictions)) #fine-tune: [-30,30] thres: 20, non ft: [-5,5] thres: 2, 0.5 for range
+threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold
 #instead of a single threshold, could make this an activation function like sigmoid or softmax
 confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
 
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float16)) #avg of high conf
+print('High Conf Avg:', high_conf_avg.numpy()) #verify the avg high conf is within reason
 low_conf_avg = 1 - high_conf_avg
 
 
@@ -271,7 +274,7 @@ all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators
 
 for image_batch, label_batch in test_dataset.as_numpy_iterator():
     predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-    threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
+    threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold at -20 and 20
     confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
     all_conf = tf.experimental.numpy.append(all_conf, confidence)
     all_pred = tf.experimental.numpy.append(all_pred, predictions)
