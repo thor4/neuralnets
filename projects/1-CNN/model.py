@@ -238,6 +238,7 @@ model = tf.keras.models.load_model('models/18kim_range_ft') #load previously tra
 model.summary() #verify architecture, trainable: 2,225,153 params between last 100 layers
 
 #model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
+model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model
 
 #plot images with predictions from test dataset
 plt.figure(figsize=(10, 10))
@@ -298,9 +299,10 @@ print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (
 #create dataset for each and run through loop to get avg high/low conf + acc for non-finetuned model trained on 20k 1 con, 2.26 tilt images
 #export to table for doby
 
-#1334 imgaes w tilt 2.26, contrast 1:
+#1334 images w tilt 2.26, contrast 1:
 #High Confidence: 0.503, Low Confidence: 0.497, Accuracy: 0.965
 
+#Model 1 testing:
 curr_dir = os.getcwd() #make sure I'm in CNN project folder
 set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26-c_1')
 set2_dir = os.path.join(curr_dir, 'images/set2-t_2.26-c_0.3')
@@ -330,26 +332,49 @@ set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of b
 set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
-current_set = set9 #define set to process. must do all nine, one at a time
+#Model 2 testing:
+curr_dir = os.getcwd() #make sure I'm in CNN project folder
+set1_dir = os.path.join(curr_dir, 'images/datasets/s1_1-t_0.1-c_0.3_0.45_1')
+set2_dir = os.path.join(curr_dir, 'images/datasets/s1_2-t_0.2-c_0.3_0.45_1')
+set3_dir = os.path.join(curr_dir, 'images/datasets/s1_3-t_0.4-c_0.3_0.45_1')
+set4_dir = os.path.join(curr_dir, 'images/datasets/s1_4-t_0.8-c_0.3_0.45_1')
+set5_dir = os.path.join(curr_dir, 'images/datasets/s1_5-t_1.6-c_0.3_0.45_1')
+set6_dir = os.path.join(curr_dir, 'images/datasets/s1_6-t_3.2-c_0.3_0.45_1')
+set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
+current_set = set6 #define set to process. must do all sets, one at a time
+
+all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
+all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
 loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
 for image_batch, label_batch in current_set.as_numpy_iterator():
     predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-    #threshold = tf.math.logical_or(predictions < -2, predictions > 2) #set conf threshold at -20 and 20
-    #confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-    #all_conf = tf.experimental.numpy.append(all_conf, confidence)
+    threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold at -20 and 20
+    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+    all_conf = tf.experimental.numpy.append(all_conf, confidence)
     #all_pred = tf.experimental.numpy.append(all_pred, predictions)
     predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
     predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
     accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
     all_acc = tf.experimental.numpy.append(all_acc, accuracy)
-#all_conf = all_conf[1:]
+all_conf = all_conf[1:]
 #all_pred = all_pred[1:]
 all_acc = all_acc[1:]  #drop first placeholder element
-#high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
+high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
 #low_conf_avg = 1 - high_conf_avg
 avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
-#print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
 #print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
 print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
