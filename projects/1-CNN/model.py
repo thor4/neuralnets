@@ -354,6 +354,7 @@ set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of b
 set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
 current_set = set6 #define set to process. must do all sets, one at a time
+eps = sys.float_info.epsilon
 
 all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
 all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
@@ -368,13 +369,19 @@ for image_batch, label_batch in current_set.as_numpy_iterator():
     predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
     accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
     all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+    # temp_avg_acc = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float16)) #avg of accuracy
+    # new_acc = 
 all_conf = all_conf[1:]
 #all_pred = all_pred[1:]
 all_acc = all_acc[1:]  #drop first placeholder element
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
 #low_conf_avg = 1 - high_conf_avg
-avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
+avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of accuracy
 print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
 #print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
 print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+
+# model.evaluate docs (find more incl TF's):
+# https://keras.io/api/models/model_training_apis/
+# https://keras.rstudio.com/reference/evaluate.html
