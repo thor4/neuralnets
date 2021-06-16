@@ -238,7 +238,7 @@ model = tf.keras.models.load_model('models/18kim_range_ft') #load previously tra
 model.summary() #verify architecture, trainable: 2,225,153 params between last 100 layers
 
 #model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
-model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model
+model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model (model 2)
 
 #plot images with predictions from test dataset
 plt.figure(figsize=(10, 10))
@@ -334,27 +334,63 @@ set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of b
 
 #Model 2 testing:
 curr_dir = os.getcwd() #make sure I'm in CNN project folder
-set1_dir = os.path.join(curr_dir, 'images/datasets/s1_1-t_0.1-c_0.3_0.45_1')
-set2_dir = os.path.join(curr_dir, 'images/datasets/s1_2-t_0.2-c_0.3_0.45_1')
-set3_dir = os.path.join(curr_dir, 'images/datasets/s1_3-t_0.4-c_0.3_0.45_1')
-set4_dir = os.path.join(curr_dir, 'images/datasets/s1_4-t_0.8-c_0.3_0.45_1')
-set5_dir = os.path.join(curr_dir, 'images/datasets/s1_5-t_1.6-c_0.3_0.45_1')
-set6_dir = os.path.join(curr_dir, 'images/datasets/s1_6-t_3.2-c_0.3_0.45_1')
+set1_dir = os.path.join(curr_dir, 'images/datasets/model2/s1-t_0.1-c_0.3')
+set2_dir = os.path.join(curr_dir, 'images/datasets/model2/s2-t_0.1-c_0.45')
+set3_dir = os.path.join(curr_dir, 'images/datasets/model2/s3-t_0.1-c_1')
+set4_dir = os.path.join(curr_dir, 'images/datasets/model2/s4-t_0.2-c_0.3')
+set5_dir = os.path.join(curr_dir, 'images/datasets/model2/s5-t_0.2-c_0.45')
+set6_dir = os.path.join(curr_dir, 'images/datasets/model2/s6-t_0.2-c_1')
+set7_dir = os.path.join(curr_dir, 'images/datasets/model2/s7-t_0.4-c_0.3')
+set8_dir = os.path.join(curr_dir, 'images/datasets/model2/s8-t_0.4-c_0.45')
+set9_dir = os.path.join(curr_dir, 'images/datasets/model2/s9-t_0.4-c_1')
+set10_dir = os.path.join(curr_dir, 'images/datasets/model2/s10-t_0.8-c_0.3')
+set11_dir = os.path.join(curr_dir, 'images/datasets/model2/s11-t_0.8-c_0.45')
+set12_dir = os.path.join(curr_dir, 'images/datasets/model2/s12-t_0.8-c_1')
+set13_dir = os.path.join(curr_dir, 'images/datasets/model2/s13-t_1.6-c_0.3')
+set14_dir = os.path.join(curr_dir, 'images/datasets/model2/s14-t_1.6-c_0.45')
+set15_dir = os.path.join(curr_dir, 'images/datasets/model2/s15-t_1.6-c_1')
+set16_dir = os.path.join(curr_dir, 'images/datasets/model2/s16-t_3.2-c_0.3')
+set17_dir = os.path.join(curr_dir, 'images/datasets/model2/s17-t_3.2-c_0.45')
+set18_dir = os.path.join(curr_dir, 'images/datasets/model2/s18-t_3.2-c_1')
 set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
 set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
 set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
 set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
 set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
 set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set10 = image_dataset_from_directory(set10_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set11 = image_dataset_from_directory(set11_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set12 = image_dataset_from_directory(set12_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set13 = image_dataset_from_directory(set13_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+set14 = image_dataset_from_directory(set14_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set15 = image_dataset_from_directory(set15_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set16 = image_dataset_from_directory(set16_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set17 = image_dataset_from_directory(set17_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+set18 = image_dataset_from_directory(set18_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
 set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set10 = set10.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set11 = set11.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set12 = set12.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set13 = set13.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set14 = set14.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set15 = set15.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set16 = set16.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set17 = set17.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+set18 = set18.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
-current_set = set6 #define set to process. must do all sets, one at a time
-eps = sys.float_info.epsilon
+current_set = set18 #define set to process. must do all sets, one at a time
+#eps = sys.float_info.epsilon
 
 all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
 all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
