@@ -1,6 +1,7 @@
 ## CNN model to dissociate confidence from accuracy
 #use transfer learning tutorial here: https://www.tensorflow.org/tutorials/images/transfer_learning
 
+from tokenize import endpats
 import tensorflow as tf 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -255,23 +256,30 @@ plt.hist(np.array(predictions)) #fine-tune: [-30,30] thres: 20, non ft: [-5,5] t
 threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold
 #instead of a single threshold, could make this an activation function like sigmoid or softmax
 confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float16)) #avg of high conf
 print('High Conf Avg:', high_conf_avg.numpy()) #verify the avg high conf is within reason
-low_conf_avg = 1 - high_conf_avg
 
-
+#now calculate confidence on sigmoid-transformed logits
 predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+plt.hist(np.array(predictions)) #visualize the sigmoid-transformed logits
+threshold2 = tf.math.logical_or(predictions < 0.25, predictions > 0.75) #set conf threshold based on sigmoid-transformed logits, closer to 0 or 1 to track either class
+confidence2 = tf.where(threshold2, 1, 0) #low confidence is 0, high confidence is 1 based on sig-trans logits
+high_conf_avg2 = tf.math.reduce_mean(tf.dtypes.cast(confidence2, tf.float16)) #avg of high conf based on sig-trans logits
+print('High Conf Avg:', high_conf_avg2.numpy()) #verify the avg high conf is within reason
+
 predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
 print('Predictions:\n', predictions.numpy())
 print('Labels:\n', label_batch) #nice job predicting
 accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+avg_accuracy = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float16)) #avg of accuracy to get performance
+print('Accuracy:', avg_accuracy.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 
 #high_conf_cor = tf.math.logical_and(tf.dtypes.cast(accuracy, tf.bool), tf.dtypes.cast(confidence, tf.bool)) #use bool AND to get high conf + correct resp
 
 all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
 all_pred=tf.zeros([], tf.int32) #initialize array to hold all prediction logits (single element)
 all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
+all_avg_acc=tf.zeros([], tf.int32) #initialize array to hold all avg accuracy indicators (single element)
 
 for image_batch, label_batch in test_dataset.as_numpy_iterator():
     predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
@@ -283,17 +291,47 @@ for image_batch, label_batch in test_dataset.as_numpy_iterator():
     predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
     accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
     all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+    avg_accuracy = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float16)) #avg performance
+    all_avg_acc = tf.experimental.numpy.append(all_avg_acc, avg_accuracy)
 #tf.size(all_conf) #1335 elements, 1334 images + 1 placeholder 0 at beginning
 all_conf = all_conf[1:]
 all_pred = all_pred[1:]
-all_acc = all_acc[1:]  #drop first placeholder element
+all_acc = all_acc[1:]  
+all_avg_acc = all_avg_acc[1:] #drop first placeholder element
 high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
-low_conf_avg = 1 - high_conf_avg
-avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of high conf
+avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg performance
+batch_avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_avg_acc, tf.float16)) #avg avg performance on each batch
 
 print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
-print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
 print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
+
+i=38
+for i in range(all_avg_acc.size): #go through entire array and calculate the accumulating avg
+  if i==0:
+    running_avg = tf.math.reduce_mean(all_avg_acc[0:i+2])
+    print('i is 0')
+  elif i==all_avg_acc.size-1:
+    print('this is the end')
+  else:
+    tf.concat([running_avg,all_avg_acc[i+1]],1)
+    print (i)
+
+  tf.math.reduce_mean(tf.dtypes.cast(all_avg_acc[1], tf.float16))
+
+#STOPPED HERE, RUN THIS ACCUMULATING AVERAGE AS A SIMPLE TEST WITH JUST 5 DIGITS FIRST:
+test = tf.constant([1, 2, 3, 4, 5])
+for i in range(5): #go through entire array and calculate the accumulating avg
+  if i==0:
+    running_avg = tf.math.reduce_mean(all_avg_acc[0:i+2])
+    print('i is 0')
+  elif i==all_avg_acc.size-1:
+    print('this is the end')
+  else:
+    tf.concat([running_avg,all_avg_acc[i+1]],1)
+    print (i)
+
+
 
 #next, generate images with different combinations of contrast + tilt 3x3
 #create dataset for each and run through loop to get avg high/low conf + acc for non-finetuned model trained on 20k 1 con, 2.26 tilt images
