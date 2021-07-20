@@ -259,7 +259,7 @@ def get_conf_logits(test_dataset, model):
     logit_thres_max = 0.5 #set max logit conf threshold for class 1
     threshold = tf.math.logical_or(predictions < logit_thres_min, predictions > logit_thres_max) #set conf threshold
     confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-    high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float16)) #avg of high conf
+    high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(confidence, tf.float64)) #avg of high conf
     print('High Conf Avg:', high_conf_avg.numpy()) #verify the avg high conf is within reason
     return label_batch,predictions,logit_thres_min,logit_thres_max
 #calculate confidence on sigmoid-transformed logits
@@ -268,7 +268,7 @@ def get_conf_sigtrans(predictions):
     plt.hist(np.array(predictions_sigtrans)) #visualize the sigmoid-transformed logits
     threshold2 = tf.math.logical_or(predictions_sigtrans < 0.25, predictions_sigtrans > 0.75) #set conf threshold based on sigmoid-transformed logits, closer to 0 or 1 to track either class
     confidence2 = tf.where(threshold2, 1, 0) #low confidence is 0, high confidence is 1 based on sig-trans logits
-    high_conf_avg2 = tf.math.reduce_mean(tf.dtypes.cast(confidence2, tf.float16)) #avg of high conf based on sig-trans logits
+    high_conf_avg2 = tf.math.reduce_mean(tf.dtypes.cast(confidence2, tf.float64)) #avg of high conf based on sig-trans logits
     print('High Conf Avg:', high_conf_avg2.numpy()) #verify the avg high conf is within reason
     return predictions_sigtrans
 def get_acc(label_batch, predictions_sigtrans):
@@ -277,7 +277,7 @@ def get_acc(label_batch, predictions_sigtrans):
     print('Predictions:\n', predictions_sigtrans.numpy())
     print('Labels:\n', label_batch) #nice job predicting
     print('Incorrect:\n', accuracy.numpy())
-    avg_accuracy = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float32)) #avg of accuracy to get performance
+    avg_accuracy = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)) #avg of accuracy to get performance
     print('Accuracy:', avg_accuracy.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 def thres_sigtrans(logit_thres_min, logit_thres_max):
     thres = tf.constant([logit_thres_min, logit_thres_max])
@@ -291,12 +291,12 @@ get_acc(label_batch, predictions_sigtrans)
 #next, get confidence and accuracy on a total dataset:
 
 def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
-    all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
-    all_pred=tf.zeros([], tf.int32) #initialize array to hold all prediction logits (single element)
-    all_labels=tf.zeros([], tf.int32) #initialize array to hold all prediction logits (single element)
-    all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
-    all_avg_acc=tf.zeros([], tf.int32) #initialize array to hold all avg accuracy indicators (single element)
-    all_pred_sigtrans=tf.zeros([], tf.int32) #initialize array to hold all avg accuracy indicators (single element)
+    all_conf=tf.zeros([], tf.float64) #initialize array to hold all confidence ratings (single element)
+    all_pred=tf.zeros([], tf.float64) #initialize array to hold all prediction logits (single element)
+    all_labels=tf.zeros([], tf.float64) #initialize array to hold all actual labels (single element)
+    all_acc=tf.zeros([], tf.float64) #initialize array to hold all accuracy indicators (single element)
+    all_avg_acc=tf.zeros([], tf.float64) #initialize array to hold all avg accuracy indicators (single element)
+    all_pred_sigtrans=tf.zeros([], tf.float64) #initialize array to hold all avg accuracy indicators (single element)
 
     for image_batch, label_batch in test_dataset.as_numpy_iterator():
         predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
@@ -310,7 +310,7 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
         all_pred_sigtrans = tf.experimental.numpy.append(all_pred_sigtrans, predictions)
         accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
         all_acc = tf.experimental.numpy.append(all_acc, accuracy)
-        avg_accuracy = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float32)) #avg performance
+        avg_accuracy = tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)) #avg performance
         all_avg_acc = tf.experimental.numpy.append(all_avg_acc, avg_accuracy)
     #tf.size(all_conf) #1335 elements, 1334 images + 1 placeholder 0 at beginning
     all_conf = all_conf[1:]
@@ -319,13 +319,13 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     all_acc = all_acc[1:]  
     all_labels = all_labels[1:]
     all_avg_acc = all_avg_acc[1:] #drop first placeholder element
-    high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float32)) #avg of high conf
-    avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float32)) #avg performance
-    batch_avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_avg_acc, tf.float32)) #avg avg performance on each batch
+    high_conf_avg = tf.reduce_mean(all_conf) #avg of high conf
+    avg_acc = tf.reduce_mean(all_acc) #avg performance
+    batch_avg_acc = tf.reduce_mean(all_avg_acc) #avg avg performance on each batch
 
-    print('Predictions:\n', tf.dtypes.cast(all_pred_sigtrans, tf.float32))
-    print('Labels:\n', tf.dtypes.cast(all_labels, tf.float32)) #nice job predicting
-    print('Incorrect:\n', tf.dtypes.cast(all_acc, tf.float32))
+    print('Predictions:\n', all_pred_sigtrans[:])
+    print('Labels:\n', all_labels) #nice job predicting
+    print('Incorrect:\n', all_acc)
     print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
     print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
     print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
@@ -337,31 +337,26 @@ all_avg_acc = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_t
 #sigmoid transform 0.5 and -0.5 to see what they correspond to in the sigmoid transform space
 thres_sigtrans(logit_thres_min, logit_thres_max)
 
-i=38
-for i in range(all_avg_acc.size): #go through entire array and calculate the accumulating avg
+i=0
+for i in range(all_avg_acc.size-1): #go through entire array and calculate the accumulating avg
   if i==0:
-    running_avg = tf.math.reduce_mean(all_avg_acc[0:i+2])
-    print('i is 0')
-  elif i==all_avg_acc.size-1:
-    print('this is the end')
+    running_avg = tf.reduce_mean(all_avg_acc[0:i+2])
   else:
-    tf.concat([running_avg,all_avg_acc[i+1]],1)
-    print (i)
+    running_avg = tf.reduce_mean(tf.concat([running_avg,all_avg_acc[i+1]],0))
 
-  tf.math.reduce_mean(tf.dtypes.cast(all_avg_acc[1], tf.float16))
+print('running average is', running_avg.numpy())
+print('one-shot average is', tf.reduce_mean(test).numpy())
 
-#STOPPED HERE, RUN THIS ACCUMULATING AVERAGE AS A SIMPLE TEST WITH JUST 5 DIGITS FIRST:
-test = tf.constant([1, 2, 3, 4, 5])
-i=1 #STOPPED HERE
-for i in range(5): #go through entire array and calculate the accumulating avg
+#toy example of accumulating average:
+test = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
+for i in range(5-1): #go through entire array and calculate the accumulating avg
   if i==0:
-    running_avg = tf.math.reduce_mean(test[0:i+2])
-    print('i is 0')
-  elif i==5-1:
-    print('this is the end')
+    running_avg = tf.reduce_mean(test[0:i+2])
   else:
-    tf.concat([running_avg,all_avg_acc[i+1]],1)
-    print (i)
+    running_avg = tf.reduce_mean(tf.concat([running_avg,test[i+1]],0))
+
+print('running average is', running_avg.numpy())
+print('one-shot average is', tf.reduce_mean(test).numpy())
 
 
 
@@ -403,91 +398,99 @@ set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of b
 set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
 
 #Model 2 testing:
-curr_dir = os.getcwd() #make sure I'm in CNN project folder
-set1_dir = os.path.join(curr_dir, 'images/datasets/model2/s1-t_0.1-c_0.3')
-set2_dir = os.path.join(curr_dir, 'images/datasets/model2/s2-t_0.1-c_0.45')
-set3_dir = os.path.join(curr_dir, 'images/datasets/model2/s3-t_0.1-c_1')
-set4_dir = os.path.join(curr_dir, 'images/datasets/model2/s4-t_0.2-c_0.3')
-set5_dir = os.path.join(curr_dir, 'images/datasets/model2/s5-t_0.2-c_0.45')
-set6_dir = os.path.join(curr_dir, 'images/datasets/model2/s6-t_0.2-c_1')
-set7_dir = os.path.join(curr_dir, 'images/datasets/model2/s7-t_0.4-c_0.3')
-set8_dir = os.path.join(curr_dir, 'images/datasets/model2/s8-t_0.4-c_0.45')
-set9_dir = os.path.join(curr_dir, 'images/datasets/model2/s9-t_0.4-c_1')
-set10_dir = os.path.join(curr_dir, 'images/datasets/model2/s10-t_0.8-c_0.3')
-set11_dir = os.path.join(curr_dir, 'images/datasets/model2/s11-t_0.8-c_0.45')
-set12_dir = os.path.join(curr_dir, 'images/datasets/model2/s12-t_0.8-c_1')
-set13_dir = os.path.join(curr_dir, 'images/datasets/model2/s13-t_1.6-c_0.3')
-set14_dir = os.path.join(curr_dir, 'images/datasets/model2/s14-t_1.6-c_0.45')
-set15_dir = os.path.join(curr_dir, 'images/datasets/model2/s15-t_1.6-c_1')
-set16_dir = os.path.join(curr_dir, 'images/datasets/model2/s16-t_3.2-c_0.3')
-set17_dir = os.path.join(curr_dir, 'images/datasets/model2/s17-t_3.2-c_0.45')
-set18_dir = os.path.join(curr_dir, 'images/datasets/model2/s18-t_3.2-c_1')
-set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
-set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
-set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set10 = image_dataset_from_directory(set10_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set11 = image_dataset_from_directory(set11_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set12 = image_dataset_from_directory(set12_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set13 = image_dataset_from_directory(set13_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
-set14 = image_dataset_from_directory(set14_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set15 = image_dataset_from_directory(set15_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set16 = image_dataset_from_directory(set16_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set17 = image_dataset_from_directory(set17_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set18 = image_dataset_from_directory(set18_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set10 = set10.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set11 = set11.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set12 = set12.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set13 = set13.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set14 = set14.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set15 = set15.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set16 = set16.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set17 = set17.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set18 = set18.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
+    curr_dir = os.getcwd() #make sure I'm in CNN project folder
+    set1_dir = os.path.join(curr_dir, 'images/datasets/model2/s1-t_0.1-c_0.3')
+    set2_dir = os.path.join(curr_dir, 'images/datasets/model2/s2-t_0.1-c_0.45')
+    set3_dir = os.path.join(curr_dir, 'images/datasets/model2/s3-t_0.1-c_1')
+    set4_dir = os.path.join(curr_dir, 'images/datasets/model2/s4-t_0.2-c_0.3')
+    set5_dir = os.path.join(curr_dir, 'images/datasets/model2/s5-t_0.2-c_0.45')
+    set6_dir = os.path.join(curr_dir, 'images/datasets/model2/s6-t_0.2-c_1')
+    set7_dir = os.path.join(curr_dir, 'images/datasets/model2/s7-t_0.4-c_0.3')
+    set8_dir = os.path.join(curr_dir, 'images/datasets/model2/s8-t_0.4-c_0.45')
+    set9_dir = os.path.join(curr_dir, 'images/datasets/model2/s9-t_0.4-c_1')
+    set10_dir = os.path.join(curr_dir, 'images/datasets/model2/s10-t_0.8-c_0.3')
+    set11_dir = os.path.join(curr_dir, 'images/datasets/model2/s11-t_0.8-c_0.45')
+    set12_dir = os.path.join(curr_dir, 'images/datasets/model2/s12-t_0.8-c_1')
+    set13_dir = os.path.join(curr_dir, 'images/datasets/model2/s13-t_1.6-c_0.3')
+    set14_dir = os.path.join(curr_dir, 'images/datasets/model2/s14-t_1.6-c_0.45')
+    set15_dir = os.path.join(curr_dir, 'images/datasets/model2/s15-t_1.6-c_1')
+    set16_dir = os.path.join(curr_dir, 'images/datasets/model2/s16-t_3.2-c_0.3')
+    set17_dir = os.path.join(curr_dir, 'images/datasets/model2/s17-t_3.2-c_0.45')
+    set18_dir = os.path.join(curr_dir, 'images/datasets/model2/s18-t_3.2-c_1')
+    set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+    set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+    set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set10 = image_dataset_from_directory(set10_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set11 = image_dataset_from_directory(set11_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set12 = image_dataset_from_directory(set12_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set13 = image_dataset_from_directory(set13_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE) #3000 images 2 classes
+    set14 = image_dataset_from_directory(set14_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set15 = image_dataset_from_directory(set15_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set16 = image_dataset_from_directory(set16_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set17 = image_dataset_from_directory(set17_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set18 = image_dataset_from_directory(set18_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set10 = set10.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set11 = set11.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set12 = set12.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set13 = set13.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set14 = set14.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set15 = set15.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set16 = set16.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set17 = set17.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set18 = set18.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    return set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18
+
+set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,ser17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
 current_set = set18 #define set to process. must do all sets, one at a time
 #eps = sys.float_info.epsilon
 
-all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
-all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
-loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
-for image_batch, label_batch in current_set.as_numpy_iterator():
-    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-    threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold at -20 and 20
-    confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-    all_conf = tf.experimental.numpy.append(all_conf, confidence)
+#STOPPED HERE - work on extracting accumulating average for previous results, then run with new confidence threshold to see if effect holds
+def model_tests(model, current_set):
+    all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
+    all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
+    loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
+    for image_batch, label_batch in current_set.as_numpy_iterator():
+        predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+        threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold at -20 and 20
+        confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
+        all_conf = tf.experimental.numpy.append(all_conf, confidence)
     #all_pred = tf.experimental.numpy.append(all_pred, predictions)
-    predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
-    predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
-    accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
-    all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+        predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+        predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+        accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+        all_acc = tf.experimental.numpy.append(all_acc, accuracy)
     # temp_avg_acc = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float16)) #avg of accuracy
     # new_acc = 
-all_conf = all_conf[1:]
+    all_conf = all_conf[1:]
 #all_pred = all_pred[1:]
-all_acc = all_acc[1:]  #drop first placeholder element
-high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
+    all_acc = all_acc[1:]  #drop first placeholder element
+    high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
 #low_conf_avg = 1 - high_conf_avg
-avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of accuracy
-print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+    avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of accuracy
+    print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
 #print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
-print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
-print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+    print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+    print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
 
 # model.evaluate docs (find more incl TF's):
 # https://keras.io/api/models/model_training_apis/
-# https://keras.rstudio.com/reference/evaluate.html
+    # https://keras.rstudio.com/reference/evaluate.html
+
+model_tests(model, current_set)
