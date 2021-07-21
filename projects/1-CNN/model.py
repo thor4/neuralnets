@@ -13,47 +13,44 @@ tf.__version__ #2.4.0
 %reset 
 
 
-#my own images for customizing the pretrained model:
-#import pathlib
-curr_dir = os.getcwd() #make sure I'm in CNN project folder
-# '/workspaces/neuralnets/projects/1-CNN' (equiv to PATH var below)
-# train_dir = os.path.join(curr_dir, 'images/train')
-train_dir = os.path.join(curr_dir, 'images/train_range') #range of tilts/contrasts
-# '/workspaces/neuralnets/projects/1-CNN/images/train'
-# there is a 'clock' and 'cclock' folder in here with 60 images a piece (3/5)
-# validation_dir = os.path.join(curr_dir, 'images/validation')
-validation_dir = os.path.join(curr_dir, 'images/validation_range') #range of tilts/contrasts
-# '/workspaces/neuralnets/projects/1-CNN/images/validation'
-# there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
-# test_dir = os.path.join(curr_dir, 'images/test')
-test_dir = os.path.join(curr_dir, 'images/test_range') #range of tilts/contrasts
-# '/workspaces/neuralnets/projects/1-CNN/images/validation'
-# there is a 'clock' and 'cclock' folder in here with 20 images a piece (1/5)
-BATCH_SIZE = 32 #stick with one iteration for training and validation per optimal batch guidance here:
-# https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
-# practically, this means only one update of gradient and neural network parameters
-IMG_SIZE = (160, 160) #forces a resize from 170x170 since MobileNetV2 has weights only for certain sizes
-train_dataset = image_dataset_from_directory(train_dir,
-                                             #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+def init_sets():
+    curr_dir = os.getcwd() #make sure I'm in CNN project folder
+    # '/workspaces/neuralnets/projects/1-CNN' (equiv to PATH var below)
+    # train_dir = os.path.join(curr_dir, 'images/train')
+    train_dir = os.path.join(curr_dir, 'images/train_range') #range of tilts/contrasts
+    # '/workspaces/neuralnets/projects/1-CNN/images/train'
+    # there is a 'clock' and 'cclock' folder in each of these folders (train/test/validate)
+    # validation_dir = os.path.join(curr_dir, 'images/validation')
+    validation_dir = os.path.join(curr_dir, 'images/validation_range') #range of tilts/contrasts
+    # '/workspaces/neuralnets/projects/1-CNN/images/validation' 
+    # test_dir = os.path.join(curr_dir, 'images/test')
+    test_dir = os.path.join(curr_dir, 'images/test_range') #range of tilts/contrasts
+    # '/workspaces/neuralnets/projects/1-CNN/images/validation'
+    BATCH_SIZE = 32 #stick with one iteration for training and validation per optimal batch guidance here:
+    # https://ai.stackexchange.com/questions/8560/how-do-i-choose-the-optimal-batch-size
+    # practically, this means only one update of gradient and neural network parameters
+    IMG_SIZE = (160, 160) #forces a resize from 170x170 since MobileNetV2 has weights only for certain sizes
+    train_dataset = image_dataset_from_directory(train_dir,
                                              shuffle=True,
                                              batch_size=BATCH_SIZE,
                                              image_size=IMG_SIZE) #Found 120 files belonging to 2 classes.
                                              #13332 images (10k/20k tot db), 11988 (range)
-validation_dataset = image_dataset_from_directory(validation_dir,
-                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+    validation_dataset = image_dataset_from_directory(validation_dir,
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
                                                   #5334 images (10k/20k tot db), 4788 (range)
-test_dataset = image_dataset_from_directory(test_dir,
-                                                  #color_mode="grayscale", #rgb by default, save 1 chan instead of 3
+    test_dataset = image_dataset_from_directory(test_dir,
                                                   shuffle=True,
                                                   batch_size=BATCH_SIZE,
                                                   image_size=IMG_SIZE) #Found 40 files belonging to 2 classes.
                                                   #1334 images (10k/20k tot db), 1224 (range)
-#show first nine images and labels from training set:
-class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
-plt.figure(figsize=(10, 10))
+    class_names = train_dataset.class_names #extract class names previous function inferred from subdir's
+    return BATCH_SIZE,IMG_SIZE,train_dataset,validation_dataset,test_dataset,class_names
+
+BATCH_SIZE, IMG_SIZE, train_dataset, validation_dataset, test_dataset, class_names = init_sets()
+
+plt.figure(figsize=(10, 10)) #show first nine images and labels from training set
 for images, labels in train_dataset.take(1): #load first iteration batch from training dataset
   for i in range(9):
     ax = plt.subplot(3, 3, i + 1) #setup axis on a 3x3 grid
@@ -70,10 +67,15 @@ for images, labels in train_dataset.take(1): #load first iteration batch from tr
 # print('Number of test batches: %d' % tf.data.experimental.cardinality(test_dataset)) #6
 #now configure the dataset for performance using buffered prefetching to load images from disk without having I/O become blocking
 #may not need the following until we do more than one batch at a time:
-AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynamically at runtime
-train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+def prefetch(train_dataset, validation_dataset, test_dataset):
+    AUTOTUNE = tf.data.AUTOTUNE #prompts the tf.data runtime to tune the value dynamically at runtime
+    train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    return train_dataset,validation_dataset,test_dataset,AUTOTUNE
+
+train_dataset, validation_dataset, test_dataset, AUTOTUNE = prefetch(train_dataset, validation_dataset, test_dataset)
+
 #MobileNetV2 expects images with pixel values [-1,1],  but our images are [0,255]. Need to rescale:
 preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input #this pre-processing method rescales input according to what MobileNetv2 expects
 #Now create the base model MobileNetV2 with pre-loaded weights trained on ImageNet
@@ -149,7 +151,7 @@ plt.show() #accuracy trends up over time and the loss goes down
 model.save('models/10kim_1con') #save the trained model into the 10kim 1con folder
 #no need to save the range model since it's only 53.74% accurate
 
-model = tf.keras.models.load_model('models/10kim_1con') #load previously trained model (not fine-tuned)
+model = tf.keras.models.load_model('models/10kim_1con') #load previously trained model 1 (not fine-tuned)
 #after loading, the convolutional base model weights need to be frozen:
 model.get_layer(name='mobilenetv2_1.00_160').trainable=False #get mobilenet base then freeze it
 model.summary() #verify architecture, trainable: 1,281 params between last two layers
@@ -230,15 +232,13 @@ plt.xlabel('epoch')
 plt.show() #accuracy trends up over time and the loss goes down
 loss, accuracy = model.evaluate(test_dataset) #now test the model's performance on the test set
 print('Test accuracy :', accuracy) #100% accuracy
-model.save('models/10kim_1con_ft') #save the fine-tuned model into the 10kim 1con ft folder
+model.save('models/10kim_1con_ft') #save fine-tuned model 1 into the 10kim 1con ft folder
 #contrasts = [.3, .45, 1] & tilts = [.1, .2, .4, .8, 1.6, 3.2]:
-model.save('models/18kim_range_ft') #save the fine-tuned model into the 18kim range ft folder (ft=fine-tuned)
-
-model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model
-model.summary() #verify architecture, trainable: 2,225,153 params between last 100 layers
+model.save('models/18kim_range_ft') #save fine-tuned model 2 into the 18kim range ft folder (ft=fine-tuned)
 
 #model = tf.keras.models.load_model('models/10kim_1con_ft') #load previously trained fine-tuned model
 model = tf.keras.models.load_model('models/18kim_range_ft') #load previously trained fine-tuned range model (model 2)
+model.summary() #verify architecture, trainable: 2,225,153 params between last 100 layers
 
 #plot images with predictions from test dataset
 plt.figure(figsize=(10, 10))
@@ -310,8 +310,13 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
         all_pred_sigtrans = tf.experimental.numpy.append(all_pred_sigtrans, predictions)
         accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
         all_acc = tf.experimental.numpy.append(all_acc, accuracy)
-        avg_accuracy = tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)) #avg performance
-        all_avg_acc = tf.experimental.numpy.append(all_avg_acc, avg_accuracy)
+        if all_acc.size==BATCH_SIZE+1: #accumulating avg loop, check to see if on first loop
+            avg_accuracy = tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)) #avg performance, init avg acc of first batch
+        else:
+            #average last/running avg with current batch's avg:
+            avg_accuracy = tf.reduce_mean(tf.concat([avg_accuracy,tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64))],0))
+        #save current accuracy in array
+        all_avg_acc = tf.experimental.numpy.append(all_avg_acc, tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)))
     #tf.size(all_conf) #1335 elements, 1334 images + 1 placeholder 0 at beginning
     all_conf = all_conf[1:]
     all_pred = all_pred[1:]
@@ -329,10 +334,10 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
     print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
     print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
-    return all_avg_acc
+    print('Accumulating Avg Accuracy:', avg_accuracy.numpy())
+    return all_avg_acc,avg_accuracy
 
-
-all_avg_acc = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
+all_avg_acc, avg_accuracy = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
 
 #sigmoid transform 0.5 and -0.5 to see what they correspond to in the sigmoid transform space
 thres_sigtrans(logit_thres_min, logit_thres_max)
@@ -345,7 +350,7 @@ for i in range(all_avg_acc.size-1): #go through entire array and calculate the a
     running_avg = tf.reduce_mean(tf.concat([running_avg,all_avg_acc[i+1]],0))
 
 print('running average is', running_avg.numpy())
-print('one-shot average is', tf.reduce_mean(test).numpy())
+print('one-shot average is', tf.reduce_mean(all_avg_acc).numpy())
 
 #toy example of accumulating average:
 test = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
@@ -359,6 +364,21 @@ print('running average is', running_avg.numpy())
 print('one-shot average is', tf.reduce_mean(test).numpy())
 
 
+#stackoverflow/github issues question
+current_set = set17 #define set to process.
+all_acc=tf.zeros([], tf.float64) #initialize array to hold all accuracy indicators (single element)
+loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
+for image_batch, label_batch in current_set.as_numpy_iterator():
+    predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
+    predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+    predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
+    accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
+    all_acc = tf.experimental.numpy.append(all_acc, accuracy)
+all_acc = all_acc[1:]  #drop first placeholder element
+avg_acc = tf.reduce_mean(all_acc)
+print('My Accuracy:', avg_acc.numpy()) 
+print('Tf Accuracy:', acc) 
+
 
 #next, generate images with different combinations of contrast + tilt 3x3
 #create dataset for each and run through loop to get avg high/low conf + acc for non-finetuned model trained on 20k 1 con, 2.26 tilt images
@@ -368,34 +388,38 @@ print('one-shot average is', tf.reduce_mean(test).numpy())
 #High Confidence: 0.503, Low Confidence: 0.497, Accuracy: 0.965
 
 #Model 1 testing:
-curr_dir = os.getcwd() #make sure I'm in CNN project folder
-set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26-c_1')
-set2_dir = os.path.join(curr_dir, 'images/set2-t_2.26-c_0.3')
-set3_dir = os.path.join(curr_dir, 'images/set3-t_2.26-c_0.45')
-set4_dir = os.path.join(curr_dir, 'images/set4-t_1.13-c_1')
-set5_dir = os.path.join(curr_dir, 'images/set5-t_1.13-c_0.3')
-set6_dir = os.path.join(curr_dir, 'images/set6-t_1.13-c_0.45')
-set7_dir = os.path.join(curr_dir, 'images/set7-t_4.52-c_1')
-set8_dir = os.path.join(curr_dir, 'images/set8-t_4.52-c_0.3')
-set9_dir = os.path.join(curr_dir, 'images/set9-t_4.52-c_0.45')
-set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
-set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
-set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+def model1_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
+    curr_dir = os.getcwd() #make sure I'm in CNN project folder
+    set1_dir = os.path.join(curr_dir, 'images/set1-t_2.26-c_1')
+    set2_dir = os.path.join(curr_dir, 'images/set2-t_2.26-c_0.3')
+    set3_dir = os.path.join(curr_dir, 'images/set3-t_2.26-c_0.45')
+    set4_dir = os.path.join(curr_dir, 'images/set4-t_1.13-c_1')
+    set5_dir = os.path.join(curr_dir, 'images/set5-t_1.13-c_0.3')
+    set6_dir = os.path.join(curr_dir, 'images/set6-t_1.13-c_0.45')
+    set7_dir = os.path.join(curr_dir, 'images/set7-t_4.52-c_1')
+    set8_dir = os.path.join(curr_dir, 'images/set8-t_4.52-c_0.3')
+    set9_dir = os.path.join(curr_dir, 'images/set9-t_4.52-c_0.45')
+    set1 = image_dataset_from_directory(set1_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set2 = image_dataset_from_directory(set2_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set3 = image_dataset_from_directory(set3_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set4 = image_dataset_from_directory(set4_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set5 = image_dataset_from_directory(set5_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set6 = image_dataset_from_directory(set6_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set7 = image_dataset_from_directory(set7_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set8 = image_dataset_from_directory(set8_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set9 = image_dataset_from_directory(set9_dir, shuffle=True, batch_size=BATCH_SIZE, image_size=IMG_SIZE)
+    set1 = set1.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set2 = set2.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set3 = set3.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set4 = set4.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set5 = set5.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set6 = set6.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set7 = set7.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set8 = set8.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    set9 = set9.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
+    return set1,set2,set3,set4,set5,set6,set7,set8,set9
+
+set1,set2,set3,set4,set5,set6,set7,set8,set9 = model1_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
 #Model 2 testing:
 def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
@@ -456,7 +480,7 @@ def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
     set18 = set18.prefetch(buffer_size=AUTOTUNE) #will prefetch an optimal number of batches
     return set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18
 
-set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,ser17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
+set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
 current_set = set18 #define set to process. must do all sets, one at a time
 #eps = sys.float_info.epsilon
