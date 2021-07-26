@@ -291,7 +291,8 @@ get_acc(label_batch, predictions_sigtrans)
 #next, get confidence and accuracy on a total dataset:
 
 def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
-    all_conf=tf.zeros([], tf.float64) #initialize array to hold all confidence ratings (single element)
+    all_conf=tf.zeros([], tf.float64) #initialize array to hold all confidence ratings based on logit threshold (single element)
+    all_conf2=tf.zeros([], tf.float64) #initialize array to hold all confidence ratings based on sig-trans threshold (single element)
     all_pred=tf.zeros([], tf.float64) #initialize array to hold all prediction logits (single element)
     all_labels=tf.zeros([], tf.float64) #initialize array to hold all actual labels (single element)
     all_acc=tf.zeros([], tf.float64) #initialize array to hold all accuracy indicators (single element)
@@ -301,11 +302,14 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     for image_batch, label_batch in test_dataset.as_numpy_iterator():
         predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
         threshold = tf.math.logical_or(predictions < logit_thres_min, predictions > logit_thres_max) #set conf threshold at -20 and 20
-        confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-        all_conf = tf.experimental.numpy.append(all_conf, confidence)
+        confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1 (based on logits)
+        all_conf = tf.experimental.numpy.append(all_conf, confidence) #based on logit threshold
         all_pred = tf.experimental.numpy.append(all_pred, predictions)
         all_labels = tf.experimental.numpy.append(all_labels, label_batch)
         predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
+        threshold2 = tf.math.logical_or(predictions_sigtrans < 0.25, predictions_sigtrans > 0.75) #set conf threshold based on sigmoid-transformed logits, closer to 0 or 1 to track either class
+        confidence2 = tf.where(threshold2, 1, 0) #low confidence is 0, high confidence is 1 based on sig-trans logits
+        all_conf2 = tf.experimental.numpy.append(all_conf2, confidence2) #based on sig-trans threshold
         predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
         all_pred_sigtrans = tf.experimental.numpy.append(all_pred_sigtrans, predictions)
         accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
@@ -319,25 +323,29 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
         all_avg_acc = tf.experimental.numpy.append(all_avg_acc, tf.reduce_mean(tf.dtypes.cast(accuracy, tf.float64)))
     #tf.size(all_conf) #1335 elements, 1334 images + 1 placeholder 0 at beginning
     all_conf = all_conf[1:]
+    all_conf2 = all_conf2[1:]
     all_pred = all_pred[1:]
     all_pred_sigtrans = all_pred_sigtrans[1:]
     all_acc = all_acc[1:]  
     all_labels = all_labels[1:]
     all_avg_acc = all_avg_acc[1:] #drop first placeholder element
     high_conf_avg = tf.reduce_mean(all_conf) #avg of high conf
+    high_conf_avg2 = tf.reduce_mean(all_conf2) #avg of high conf based on sig-trans logits
     avg_acc = tf.reduce_mean(all_acc) #avg performance
     batch_avg_acc = tf.reduce_mean(all_avg_acc) #avg avg performance on each batch
-
+    loss, tf_accuracy = model.evaluate(test_dataset) #get TF model.evaluate() accuracy
     print('Predictions:\n', all_pred_sigtrans[:])
     print('Labels:\n', all_labels) #nice job predicting
     print('Incorrect:\n', all_acc)
-    print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
+    print('High Confidence (Logits):', high_conf_avg.numpy()) #using logits threshold
+    print('High Confidence (Sig-trans):', high_conf_avg2.numpy()) #using sig-transformed threshold
     print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
     print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
     print('Accumulating Avg Accuracy:', avg_accuracy.numpy())
-    return all_avg_acc,avg_accuracy
+    print('TF model.evaluate() Accuracy:', tf_accuracy)
+    return all_conf,all_pred,all_pred_sigtrans,all_acc,all_labels,all_avg_acc,avg_accuracy
 
-all_avg_acc, avg_accuracy = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
+all_conf, all_pred, all_pred_sigtrans, all_acc, all_labels, all_avg_acc, avg_accuracy = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
 
 #sigmoid transform 0.5 and -0.5 to see what they correspond to in the sigmoid transform space
 thres_sigtrans(logit_thres_min, logit_thres_max)
@@ -482,39 +490,14 @@ def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
 
 set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
-current_set = set18 #define set to process. must do all sets, one at a time
+current_set = set1 #define set to process. must do all sets, one at a time
 #eps = sys.float_info.epsilon
 
 #STOPPED HERE - work on extracting accumulating average for previous results, then run with new confidence threshold to see if effect holds
-def model_tests(model, current_set):
-    all_conf=tf.zeros([], tf.int32) #initialize array to hold all confidence ratings (single element)
-    all_acc=tf.zeros([], tf.int32) #initialize array to hold all accuracy indicators (single element)
-    loss, acc = model.evaluate(current_set) #now test the model's performance on the test set
-    for image_batch, label_batch in current_set.as_numpy_iterator():
-        predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
-        threshold = tf.math.logical_or(predictions < -0.5, predictions > 0.5) #set conf threshold at -20 and 20
-        confidence = tf.where(threshold, 1, 0) #low confidence is 0, high confidence is 1
-        all_conf = tf.experimental.numpy.append(all_conf, confidence)
-    #all_pred = tf.experimental.numpy.append(all_pred, predictions)
-        predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
-        predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
-        accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
-        all_acc = tf.experimental.numpy.append(all_acc, accuracy)
-    # temp_avg_acc = tf.math.reduce_mean(tf.dtypes.cast(accuracy, tf.float16)) #avg of accuracy
-    # new_acc = 
-    all_conf = all_conf[1:]
-#all_pred = all_pred[1:]
-    all_acc = all_acc[1:]  #drop first placeholder element
-    high_conf_avg = tf.math.reduce_mean(tf.dtypes.cast(all_conf, tf.float16)) #avg of high conf
-#low_conf_avg = 1 - high_conf_avg
-    avg_acc = tf.math.reduce_mean(tf.dtypes.cast(all_acc, tf.float16)) #avg of accuracy
-    print('High Confidence:', high_conf_avg.numpy()) #base: 0.503
-#print('Low Confidence:', low_conf_avg.numpy()) #base: 0.497
-    print('My Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
-    print('Tf Accuracy:', acc) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
-
 # model.evaluate docs (find more incl TF's):
 # https://keras.io/api/models/model_training_apis/
     # https://keras.rstudio.com/reference/evaluate.html
 
-model_tests(model, current_set)
+#run for all sets:
+all_conf, all_pred, all_pred_sigtrans, all_acc, all_labels, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, logit_thres_min, logit_thres_max)
+
