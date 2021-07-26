@@ -334,9 +334,9 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     avg_acc = tf.reduce_mean(all_acc) #avg performance
     batch_avg_acc = tf.reduce_mean(all_avg_acc) #avg avg performance on each batch
     loss, tf_accuracy = model.evaluate(test_dataset) #get TF model.evaluate() accuracy
-    print('Predictions:\n', all_pred_sigtrans[:])
-    print('Labels:\n', all_labels) #nice job predicting
-    print('Incorrect:\n', all_acc)
+    print('Predictions:\n', all_pred_sigtrans[:].data.numpy())
+    print('Labels:\n', all_labels.data.numpy()) #nice job predicting
+    print('Incorrect:\n', all_acc.data.numpy())
     print('High Confidence (Logits):', high_conf_avg.numpy()) #using logits threshold
     print('High Confidence (Sig-trans):', high_conf_avg2.numpy()) #using sig-transformed threshold
     print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
@@ -491,9 +491,7 @@ def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
 set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
 current_set = set1 #define set to process. must do all sets, one at a time
-#eps = sys.float_info.epsilon
 
-#STOPPED HERE - work on extracting accumulating average for previous results, then run with new confidence threshold to see if effect holds
 # model.evaluate docs (find more incl TF's):
 # https://keras.io/api/models/model_training_apis/
     # https://keras.rstudio.com/reference/evaluate.html
@@ -501,3 +499,21 @@ current_set = set1 #define set to process. must do all sets, one at a time
 #run for all sets:
 all_conf, all_pred, all_pred_sigtrans, all_acc, all_labels, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, logit_thres_min, logit_thres_max)
 
+#STOPPED HERE
+#NEED TO SAVE ALL THESE FILES AS SEPARATE FILES IN EACH SET'S RESULTS FOLDER, IE: neuralnets\projects\1-CNN\results\model2\s1-t_0.1-c_0.3
+
+all_conf.data.numpy() #pulls out just the numerical data from the tensor
+
+import pandas as pd
+
+## convert your array into a dataframe
+df = pd.DataFrame(all_conf.data.numpy()) #this makes one column of data
+
+#NEED TO RESEARCH PANDAS DATAFRAMES TO SAVE ALL VARIABLES AS COLUMNS IN A TABLE WITH APPROPRIATE LABELING THEN SAVE AS XLSX:
+# ## save to xlsx file
+
+filepath = 'my_excel_file.xlsx'
+
+df.to_excel(filepath, index=False)
+
+#FINALLY, NEED TO UPDATE RESULTS.XLSX
