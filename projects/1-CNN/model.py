@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 tf.__version__ #2.4.0
@@ -297,7 +298,8 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     all_labels=tf.zeros([], tf.float64) #initialize array to hold all actual labels (single element)
     all_acc=tf.zeros([], tf.float64) #initialize array to hold all accuracy indicators (single element)
     all_avg_acc=tf.zeros([], tf.float64) #initialize array to hold all avg accuracy indicators (single element)
-    all_pred_sigtrans=tf.zeros([], tf.float64) #initialize array to hold all avg accuracy indicators (single element)
+    all_pred_sigtrans=tf.zeros([], tf.float64) #initialize array to hold all sig-trans predictions (single element)
+    all_pred_final=tf.zeros([], tf.float64) #initialize array to hold all predictions after rounding up/down based on sig-trans (single element)
 
     for image_batch, label_batch in test_dataset.as_numpy_iterator():
         predictions = model.predict_on_batch(image_batch).flatten() #run batch through model and return logits
@@ -307,11 +309,12 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
         all_pred = tf.experimental.numpy.append(all_pred, predictions)
         all_labels = tf.experimental.numpy.append(all_labels, label_batch)
         predictions = tf.nn.sigmoid(predictions) #apply sigmoid activation function to transform logits to [0,1]
-        threshold2 = tf.math.logical_or(predictions_sigtrans < 0.25, predictions_sigtrans > 0.75) #set conf threshold based on sigmoid-transformed logits, closer to 0 or 1 to track either class
+        all_pred_sigtrans = tf.experimental.numpy.append(all_pred_sigtrans, predictions)
+        threshold2 = tf.math.logical_or(predictions < 0.25, predictions > 0.75) #set conf threshold based on sigmoid-transformed logits, closer to 0 or 1 to track either class
         confidence2 = tf.where(threshold2, 1, 0) #low confidence is 0, high confidence is 1 based on sig-trans logits
         all_conf2 = tf.experimental.numpy.append(all_conf2, confidence2) #based on sig-trans threshold
         predictions = tf.where(predictions < 0.5, 0, 1) #round down or up accordingly since it's a binary classifier
-        all_pred_sigtrans = tf.experimental.numpy.append(all_pred_sigtrans, predictions)
+        all_pred_final = tf.experimental.numpy.append(all_pred_final, predictions)
         accuracy = tf.where(tf.equal(predictions,label_batch),1,0) #correct is 1 and incorrect is 0
         all_acc = tf.experimental.numpy.append(all_acc, accuracy)
         if all_acc.size==BATCH_SIZE+1: #accumulating avg loop, check to see if on first loop
@@ -326,6 +329,7 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     all_conf2 = all_conf2[1:]
     all_pred = all_pred[1:]
     all_pred_sigtrans = all_pred_sigtrans[1:]
+    all_pred_final = all_pred_final[1:]
     all_acc = all_acc[1:]  
     all_labels = all_labels[1:]
     all_avg_acc = all_avg_acc[1:] #drop first placeholder element
@@ -334,18 +338,25 @@ def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
     avg_acc = tf.reduce_mean(all_acc) #avg performance
     batch_avg_acc = tf.reduce_mean(all_avg_acc) #avg avg performance on each batch
     loss, tf_accuracy = model.evaluate(test_dataset) #get TF model.evaluate() accuracy
-    print('Predictions:\n', all_pred_sigtrans[:].data.numpy())
-    print('Labels:\n', all_labels.data.numpy()) #nice job predicting
-    print('Incorrect:\n', all_acc.data.numpy())
-    print('High Confidence (Logits):', high_conf_avg.numpy()) #using logits threshold
-    print('High Confidence (Sig-trans):', high_conf_avg2.numpy()) #using sig-transformed threshold
-    print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
-    print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
-    print('Accumulating Avg Accuracy:', avg_accuracy.numpy())
-    print('TF model.evaluate() Accuracy:', tf_accuracy)
-    return all_conf,all_pred,all_pred_sigtrans,all_acc,all_labels,all_avg_acc,avg_accuracy
+    # print('Predictions:\n', all_pred_sigtrans[:].data.numpy())
+    # print('Labels:\n', all_labels.data.numpy()) #nice job predicting
+    # print('Incorrect:\n', all_acc.data.numpy())
+    # print('High Confidence (Logits):', high_conf_avg.numpy()) #using logits threshold
+    # print('High Confidence (Sig-trans):', high_conf_avg2.numpy()) #using sig-transformed threshold
+    # print('Accuracy:', avg_acc.numpy()) #base: 0.965 vs 0.9528 with model.evaluate (maybe the sigmoid or rounding steps are diff)
+    # print('Batch Accuracy:', batch_avg_acc.numpy()) #overall avg of each batches' avg performance, same as avg_acc
+    # print('Accumulating Avg Accuracy:', avg_accuracy.numpy())
+    # print('TF model.evaluate() Accuracy:', tf_accuracy)
+    ## convert your array into a dataframe
+    df = pd.DataFrame({"High Conf (logits)":all_conf.data.numpy(),"High Conf (sig-trans)":all_conf2.data.numpy(),
+                   "Prediction (logits)":all_pred.data.numpy(),"Prediction (sig-trans)":all_pred_sigtrans.data.numpy(),
+                   "Prediction (rounded)":all_pred_final.data.numpy(),"Actual Label":all_labels.data.numpy(),"Performance":all_acc.data.numpy()}) #this makes a dataframe of all stimuli responses
+    df_results = pd.DataFrame({"High Conf (logits) Avg":high_conf_avg.numpy(),"High Conf (sig-trans) Avg":high_conf_avg2.numpy(),
+                               "My Acc":avg_acc.numpy(),"Batch Acc":batch_avg_acc.numpy(),"Acc Avg Acc":avg_accuracy.numpy(),
+                               "TF model.eval Acc":tf_accuracy}, index=[0])
+    return df,df_results,all_avg_acc,avg_accuracy
 
-all_conf, all_pred, all_pred_sigtrans, all_acc, all_labels, all_avg_acc, avg_accuracy = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
+df, df_results, all_avg_acc, avg_accuracy = get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max)
 
 #sigmoid transform 0.5 and -0.5 to see what they correspond to in the sigmoid transform space
 thres_sigtrans(logit_thres_min, logit_thres_max)
@@ -497,23 +508,43 @@ current_set = set1 #define set to process. must do all sets, one at a time
     # https://keras.rstudio.com/reference/evaluate.html
 
 #run for all sets:
-all_conf, all_pred, all_pred_sigtrans, all_acc, all_labels, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, logit_thres_min, logit_thres_max)
+df, df_results, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, logit_thres_min, logit_thres_max)
 
 #STOPPED HERE
 #NEED TO SAVE ALL THESE FILES AS SEPARATE FILES IN EACH SET'S RESULTS FOLDER, IE: neuralnets\projects\1-CNN\results\model2\s1-t_0.1-c_0.3
 
 all_conf.data.numpy() #pulls out just the numerical data from the tensor
 
-import pandas as pd
 
-## convert your array into a dataframe
-df = pd.DataFrame(all_conf.data.numpy()) #this makes one column of data
 
-#NEED TO RESEARCH PANDAS DATAFRAMES TO SAVE ALL VARIABLES AS COLUMNS IN A TABLE WITH APPROPRIATE LABELING THEN SAVE AS XLSX:
-# ## save to xlsx file
 
-filepath = 'my_excel_file.xlsx'
 
-df.to_excel(filepath, index=False)
+#NEED TO TURN THE BELOW I/O INTO A FUNCTION THAT WRITES AN EXCEL FILE IN THE APPROPRIATE PATH, MAKE FILENAME VARIABLE TO GET SUMMARY STATS AND INDIV
+#NEXT, NEED TO RUN A LOOP GOING THROUGH ALL SETS SAVING BOTH df & df_results, BUT ALSO STACKING THE df_results FOR INCLUSION INTO RESULTS.XLSX
+#MAYBE USE tilt/contrast COMBO AS INDEX FOR EACH SET IN AGGREGATOR FILE?
+
+curr_dir = os.getcwd() #make sure I'm in CNN project folder
+set1_dir = os.path.join(curr_dir, 'results/model2/s1-t_0.1-c_0.3')
+set2_dir = os.path.join(curr_dir, 'results/model2/s2-t_0.1-c_0.45')
+set3_dir = os.path.join(curr_dir, 'results/model2/s3-t_0.1-c_1')
+set4_dir = os.path.join(curr_dir, 'results/model2/s4-t_0.2-c_0.3')
+set5_dir = os.path.join(curr_dir, 'results/model2/s5-t_0.2-c_0.45')
+set6_dir = os.path.join(curr_dir, 'results/model2/s6-t_0.2-c_1')
+set7_dir = os.path.join(curr_dir, 'results/model2/s7-t_0.4-c_0.3')
+set8_dir = os.path.join(curr_dir, 'results/model2/s8-t_0.4-c_0.45')
+set9_dir = os.path.join(curr_dir, 'results/model2/s9-t_0.4-c_1')
+set10_dir = os.path.join(curr_dir, 'results/model2/s10-t_0.8-c_0.3')
+set11_dir = os.path.join(curr_dir, 'results/model2/s11-t_0.8-c_0.45')
+set12_dir = os.path.join(curr_dir, 'results/model2/s12-t_0.8-c_1')
+set13_dir = os.path.join(curr_dir, 'results/model2/s13-t_1.6-c_0.3')
+set14_dir = os.path.join(curr_dir, 'results/model2/s14-t_1.6-c_0.45')
+set15_dir = os.path.join(curr_dir, 'results/model2/s15-t_1.6-c_1')
+set16_dir = os.path.join(curr_dir, 'results/model2/s16-t_3.2-c_0.3')
+set17_dir = os.path.join(curr_dir, 'results/model2/s17-t_3.2-c_0.45')
+set18_dir = os.path.join(curr_dir, 'results/model2/s18-t_3.2-c_1')
+
+indiv_results_filepath = os.path.join(set1_dir, 'indiv_results.xlsx')
+
+df.to_excel(indiv_results_filepath, index=False)
 
 #FINALLY, NEED TO UPDATE RESULTS.XLSX
