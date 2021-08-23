@@ -289,6 +289,28 @@ label_batch, predictions, logit_thres_min, logit_thres_max = get_conf_logits(tes
 predictions_sigtrans = get_conf_sigtrans(predictions)
 get_acc(label_batch, predictions_sigtrans)
 
+#  Confidence strategy options
+#  Option A (Balanced): Choose more confident if above 0.5 and less confident if below -0.5
+#  Option B1 (Certain): Choose more confident if above 0.1 or below -0.1, less confident otherwise
+#  Option B2 (Certain): Choose more confident if above 0.25 or below -0.25, less confident otherwise
+#  Option C1 (Uncertain): Choose more confident if above 0.9 or below -0.9, less confident otherwise
+#  Option C2 (Uncertain): Choose more confident if above 0.75 or below -0.75, less confident otherwise
+
+#establish confidence strategy
+def get_conf_strat(strategy):
+    if strategy == 'balanced':
+        thres_min, thres_max = [-0.5, 0.5]
+    elif strategy == 'certain1':
+        thres_min, thres_max = [-0.1, 0.1]
+    elif strategy == 'certain2':
+        thres_min, thres_max = [-0.25, 0.25]
+    elif strategy == 'uncertain1':
+        thres_min, thres_max = [-0.9, 0.9]
+    elif strategy == 'uncertain2':
+        thres_min, thres_max = [-0.75, 0.75]
+    return thres_min, thres_max
+
+thres_min, thres_max = get_conf_strat('balanced')
 #next, get confidence and accuracy on a total dataset:
 
 def get_conf_acc_dataset(test_dataset, model, logit_thres_min, logit_thres_max):
@@ -501,14 +523,17 @@ def model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE):
 
 set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18 = model2_init_sets(BATCH_SIZE, IMG_SIZE, AUTOTUNE)
 
-current_set = set1 #define set to process. must do all sets, one at a time
+#current_set = set1 #define set to process. must do all sets, one at a time
+
+all_sets = [set1,set2,set3,set4,set5,set6,set7,set8,set9,set10,set11,set12,set13,set14,set15,set16,set17,set18]
 
 # model.evaluate docs (find more incl TF's):
 # https://keras.io/api/models/model_training_apis/
     # https://keras.rstudio.com/reference/evaluate.html
 
-#run for all sets:
-df, df_results, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, logit_thres_min, logit_thres_max)
+for dataset in all_sets: #run for all sets:
+    thres_min, thres_max = get_conf_strat('balanced') #establish conf strategy
+    df, df_results, all_avg_acc, avg_accuracy = get_conf_acc_dataset(dataset, model, logit_thres_min, logit_thres_max)
 
 #STOPPED HERE
 #NEED TO SAVE ALL THESE FILES AS SEPARATE FILES IN EACH SET'S RESULTS FOLDER, IE: neuralnets\projects\1-CNN\results\model2\s1-t_0.1-c_0.3
@@ -516,7 +541,9 @@ df, df_results, all_avg_acc, avg_accuracy = get_conf_acc_dataset(set1, model, lo
 all_conf.data.numpy() #pulls out just the numerical data from the tensor
 
 
-
+#8/23/21: NEED TO REFACTOR get_conf_acc_dataset func to only get confidence once, remove the logit one
+#proceed to test the hypothesis specified in the onenote- run for all datasets for each strategy and
+#compile results into single excel while also saving individual results per strategy
 
 
 #NEED TO TURN THE BELOW I/O INTO A FUNCTION THAT WRITES AN EXCEL FILE IN THE APPROPRIATE PATH, MAKE FILENAME VARIABLE TO GET SUMMARY STATS AND INDIV
