@@ -23,8 +23,8 @@ orientation = pi/4; %radians (45 deg), add to / subtract from this to get classe
 rng(0,'twister'); %init random number generator to make results repeatable
 %create vector of num_tilts random values. Use rand function to draw 
 %values from uniform distribution in open interval, (tilt_start,tilt_end)
-tilt_start = 0.1;
-tilt_end = 3; 
+tilt_start = 0.05;
+tilt_end = 2; 
 % r = (tilt_end-tilt_start).*rand(num_tilts,1) + tilt_start;
 % r_range = [min(r) max(r)]; % confirm tilt range is in open interval
 % %visualize to ensure relatively uniform:
