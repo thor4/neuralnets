@@ -13,8 +13,8 @@
 %match all aspects of gabors from experiment
 width = 169 ; % p.stimSize in pixels 
 nGaussianSDs = [] ; %default in exp (6)
-contrasts = [.3, .45, 1];  % 30%, 45% and 100% contrast
-% contrast = 1; %middle contrast from experiment, dropping other 2
+% contrasts = [.3, .45, 1];  % 30%, 45% and 100% contrast
+contrast = 0.45; %middle contrast from experiment, dropping other 2
 noise = 1; %same as exp
 gratingPeriod = 0.5; %same as exp
 gratingPeriodUnits = 'sd'; %same as exp
@@ -37,12 +37,12 @@ tilt_end = 2;
 %p.tilts = [middle_tilt/2, middle_tilt, 2*middle_tilt];
 %Middle tilt = 2.26 # supposed to yield 75% accuracy, this is in degrees
 % counter_tilts = orientation - tilts; clock_tilts = orientation + tilts; 
-tilts = [0.05:13/160:2]; %25 tilts tiled evenly from 0.05-2
+tilts = [0.05:13/160:2] .* (pi/180); %25 tilts tiled evenly from 0.05-2, converted to radians
 fnames = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",...
     "s13","s14","s15","s16","s17","s18","s19","s20","s21","s22","s23",...
     "s24","s25"];
-root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\clock\\clock%d.png"
-root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\cclock\\cclock%d.png"
+root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\clock\\clock%d.png";
+root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\cclock\\cclock%d.png";
 num_gabors = 10; %define number of gabors to make for each contrast
 % 3500 gabors * 3 contrasts * 2 classes = 21,000 gabors
 n_train_gabor = floor(num_gabors*(2/3)); %number of training gabor images
@@ -51,49 +51,12 @@ n_test_gabor = num_gabors - n_train_gabor - n_valid_gabor;
 imageN = 1; %initialize image counter
 %UPDATE WHERE IMAGES WILL BE STORED TO SAVE ON OSF
 tic
-for contrastN = 1:length(contrasts)
-    contrast = contrasts(contrastN); %current contrast
-    %move tilts down to 1:num gabors to generate random each time, now
-    %total images = num_gabors * 3 contrasts * 2 classes
-    %run a test with small num_gabors and new folders
-    for tiltN = 1:length(tilts)
-        counter_tilt = orientation - tilts(tiltN); 
-        clock_tilt = orientation + tilts(tiltN); fname=fnames(tiltN);
-        imageN = gen_gabor(num_gabors,contrast,clock_tilt,width,noise,...
-            gratingPeriod,gratingPeriodUnits,imageN,root_dir_clock,fname);
-        imageN = gen_gabor(num_gabors,contrast,counter_tilt,width,noise,...
-            gratingPeriod,gratingPeriodUnits,imageN,root_dir_cclock,fname);
-    end
+for tiltN = 1:length(tilts)
+    counter_tilt = orientation - tilts(tiltN); 
+    clock_tilt = orientation + tilts(tiltN); fname=fnames(tiltN);
+    imageN = gen_gabor(num_gabors,contrast,clock_tilt,width,noise,...
+        gratingPeriod,gratingPeriodUnits,imageN,root_dir_clock,fname);
+    imageN = gen_gabor(num_gabors,contrast,counter_tilt,width,noise,...
+        gratingPeriod,gratingPeriodUnits,imageN,root_dir_cclock,fname);
 end
 toc
-
-%NEED TO MAKE BATCH FILES FOR MASS DELETION OF PNGS AND CREATING FOLDERS,
-%SUBFOLDERS WITHIN SUBFOLDERS
-%generate and save gabor images of size width+1 x width+1 (170x170 .png's)
-
-%create  base case (45 deg) and visualize difference
-
-gaborPatch = uint8(makeGaborPatch(width,[],contrast,noise,...
-    gratingPeriod,gratingPeriodUnits,orientation));
-
-figure(1), clf
-subplot(1,3,1)
-imshow(gaborPatch_counter)
-tcounter = sprintf('Counter %.2f',counter_tilt);
-title(tcounter,'FontSize',20)
-subplot(1,3,2)
-imshow(gaborPatch)
-t = sprintf('Baseline %.2f',orientation);
-title(t,'FontSize',20)
-subplot(1,3,3)
-imshow(gaborPatch_clock)
-tclock = sprintf('Clock %.2f',clock_tilt);
-title(tclock,'FontSize',20)
-
-imwrite(gaborPatch,'base.png');
-
-
-export_fig('gabors','-png','-transparent'); %save transparent pdf in pwd
-
-%now generate 100 gabors for each class to be used in the transfer learning
-%tensorflow code
