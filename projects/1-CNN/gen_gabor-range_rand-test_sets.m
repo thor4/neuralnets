@@ -41,9 +41,9 @@ tilts = [0.05:13/160:2] .* (pi/180); %25 tilts tiled evenly from 0.05-2, convert
 fnames = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",...
     "s13","s14","s15","s16","s17","s18","s19","s20","s21","s22","s23",...
     "s24","s25"];
-root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\clock\\clock%d.png";
-root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\test\\%s\\cclock\\cclock%d.png";
-num_gabors = 10; %define number of gabors to make for each contrast
+root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_0_05-2_contrast_0_45\\%s\\clock\\clock%d.png";
+root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_0_05-2_contrast_0_45\\%s\\cclock\\cclock%d.png";
+num_gabors = 2000; %define number of gabors to make for each contrast
 % 3500 gabors * 3 contrasts * 2 classes = 21,000 gabors
 n_train_gabor = floor(num_gabors*(2/3)); %number of training gabor images
 n_valid_gabor = floor(0.8*(num_gabors-n_train_gabor)); %number of validation gabor images
