@@ -13,8 +13,8 @@
 %match all aspects of gabors from experiment
 width = 169 ; % p.stimSize in pixels 
 nGaussianSDs = [] ; %default in exp (6)
-% contrasts = [.3, .45, 1];  % 30%, 45% and 100% contrast
-contrast = 0.45; %middle contrast from experiment, dropping other 2
+contrasts = [1, .45, 0.3];  % 30%, 45% and 100% contrast
+% contrast = 0.45; %middle contrast from experiment, dropping other 2
 noise = 1; %same as exp
 gratingPeriod = 0.5; %same as exp
 gratingPeriodUnits = 'sd'; %same as exp
@@ -23,8 +23,8 @@ orientation = pi/4; %radians (45 deg), add to / subtract from this to get classe
 rng(0,'twister'); %init random number generator to make results repeatable
 %create vector of num_tilts random values. Use rand function to draw 
 %values from uniform distribution in open interval, (tilt_start,tilt_end)
-tilt_start = 0.05;
-tilt_end = 2; 
+% tilt_start = 0.05;
+% tilt_end = 2; 
 % r = (tilt_end-tilt_start).*rand(num_tilts,1) + tilt_start;
 % r_range = [min(r) max(r)]; % confirm tilt range is in open interval
 % %visualize to ensure relatively uniform:
@@ -37,12 +37,14 @@ tilt_end = 2;
 %p.tilts = [middle_tilt/2, middle_tilt, 2*middle_tilt];
 %Middle tilt = 2.26 # supposed to yield 75% accuracy, this is in degrees
 % counter_tilts = orientation - tilts; clock_tilts = orientation + tilts; 
-tilts = [0.05:13/160:2] .* (pi/180); %25 tilts tiled evenly from 0.05-2, converted to radians
-fnames = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",...
-    "s13","s14","s15","s16","s17","s18","s19","s20","s21","s22","s23",...
-    "s24","s25"];
-root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_0_05-2_contrast_0_45\\%s\\clock\\clock%d.png";
-root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_0_05-2_contrast_0_45\\%s\\cclock\\cclock%d.png";
+% tilts = [0.05:13/160:2] .* (pi/180); %25 tilts tiled evenly from 0.05-2, converted to radians
+tilts = [0.05:13/160:0.05+(13/160)*2] .* (pi/180); %3 tilts for van gabor
+% fnames = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",...
+%     "s13","s14","s15","s16","s17","s18","s19","s20","s21","s22","s23",...
+%     "s24","s25"];
+fnames = ["s1-t_0_05-c_1","s2-t_0_1313-c_0_45","s3-t_0_2125-c_0_3"];
+root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_contrast-van_gabor\\%s\\clock\\clock%d.png";
+root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_contrast-van_gabor\\%s\\cclock\\cclock%d.png";
 num_gabors = 2000; %define number of gabors to make for each contrast
 % 3500 gabors * 3 contrasts * 2 classes = 21,000 gabors
 n_train_gabor = floor(num_gabors*(2/3)); %number of training gabor images
@@ -52,6 +54,7 @@ imageN = 1; %initialize image counter
 %UPDATE WHERE IMAGES WILL BE STORED TO SAVE ON OSF
 tic
 for tiltN = 1:length(tilts)
+    contrast = contrasts(tiltN)
     counter_tilt = orientation - tilts(tiltN); 
     clock_tilt = orientation + tilts(tiltN); fname=fnames(tiltN);
     imageN = gen_gabor(num_gabors,contrast,clock_tilt,width,noise,...
