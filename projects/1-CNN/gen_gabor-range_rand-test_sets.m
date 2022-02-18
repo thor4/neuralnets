@@ -13,7 +13,7 @@
 %match all aspects of gabors from experiment
 width = 169 ; % p.stimSize in pixels 
 nGaussianSDs = [] ; %default in exp (6)
-contrasts = [1, .45, 0.3];  % 30%, 45% and 100% contrast
+contrasts = [0.3, .45, 1];  % 30%, 45% and 100% contrast
 % contrast = 0.45; %middle contrast from experiment, dropping other 2
 noise = 1; %same as exp
 gratingPeriod = 0.5; %same as exp
@@ -42,7 +42,9 @@ tilts = [0.05:13/160:0.05+(13/160)*2] .* (pi/180); %3 tilts for van gabor
 % fnames = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",...
 %     "s13","s14","s15","s16","s17","s18","s19","s20","s21","s22","s23",...
 %     "s24","s25"];
-fnames = ["s1-t_0_05-c_1","s2-t_0_1313-c_0_45","s3-t_0_2125-c_0_3"];
+fnames = "%s-%s";
+contrast_names = ["c_0_3","c_0_45","c_1"];
+tilt_names = ["t_0_05","t_0_1313","t_0_2125"];
 root_dir_clock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_contrast-van_gabor\\%s\\clock\\clock%d.png";
 root_dir_cclock = "J:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\testing\\tilt_contrast-van_gabor\\%s\\cclock\\cclock%d.png";
 num_gabors = 2000; %define number of gabors to make for each contrast
@@ -53,13 +55,17 @@ n_test_gabor = num_gabors - n_train_gabor - n_valid_gabor;
 imageN = 1; %initialize image counter
 %UPDATE WHERE IMAGES WILL BE STORED TO SAVE ON OSF
 tic
-for tiltN = 1:length(tilts)
-    contrast = contrasts(tiltN)
-    counter_tilt = orientation - tilts(tiltN); 
-    clock_tilt = orientation + tilts(tiltN); fname=fnames(tiltN);
-    imageN = gen_gabor(num_gabors,contrast,clock_tilt,width,noise,...
-        gratingPeriod,gratingPeriodUnits,imageN,root_dir_clock,fname);
-    imageN = gen_gabor(num_gabors,contrast,counter_tilt,width,noise,...
-        gratingPeriod,gratingPeriodUnits,imageN,root_dir_cclock,fname);
+for contrastN = 1:length(contrasts)
+    contrast = contrasts(contrastN);
+    contrast_name = contrast_names(contrastN);
+    for tiltN = 1:length(tilts)
+        counter_tilt = orientation - tilts(tiltN); 
+        clock_tilt = orientation + tilts(tiltN); 
+        fname = sprintf(fnames,tilt_names(tiltN),contrast_names(contrastN));
+        imageN = gen_gabor(num_gabors,contrast,clock_tilt,width,noise,...
+            gratingPeriod,gratingPeriodUnits,imageN,root_dir_clock,fname);
+        imageN = gen_gabor(num_gabors,contrast,counter_tilt,width,noise,...
+            gratingPeriod,gratingPeriodUnits,imageN,root_dir_cclock,fname);
+    end
 end
 toc
