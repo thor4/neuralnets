@@ -61,21 +61,27 @@ for contrastN = 1:length(contrasts)
             gratingPeriod,gratingPeriodUnits,clock_tilt)); %clockwise
         if (ismember(i,(1:n_train_gabor)))
             imageN = imageN + 1;
-            counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\cclock\\cclock%d.png',imageN);
+%             counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\cclock\\cclock%d.png',imageN);
+            counter_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\cclock\\cclock%d.png',imageN);
             imwrite(gaborPatch_counter,counter_label);
-            clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\clock\\clock%d.png',imageN);
+%             clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\clock\\clock%d.png',imageN);
+            clock_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\train_range_rand\\clock\\clock%d.png',imageN);
             imwrite(gaborPatch_clock,clock_label);
         elseif (ismember(i,(n_train_gabor+1:n_train_gabor+n_valid_gabor))) 
             imageN = imageN + 1;
-            counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\cclock\\cclock%d.png',imageN);
+%             counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\cclock\\cclock%d.png',imageN);
+            counter_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\cclock\\cclock%d.png',imageN);
             imwrite(gaborPatch_counter,counter_label);
-            clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\clock\\clock%d.png',imageN);
+%             clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\clock\\clock%d.png',imageN);
+            clock_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\valid_range_rand\\clock\\clock%d.png',imageN);
             imwrite(gaborPatch_clock,clock_label);
         else
             imageN = imageN + 1;
-            counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\cclock\\cclock%d.png',imageN);
+%             counter_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\cclock\\cclock%d.png',imageN);
+            counter_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\cclock\\cclock%d.png',imageN);
             imwrite(gaborPatch_counter,counter_label);
-            clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\clock\\clock%d.png',imageN);
+%             clock_label = sprintf('G:\\OneDrive - Georgia Institute of Technology\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\clock\\clock%d.png',imageN);
+            clock_label = sprintf('D:\\projects\\metacognitive bias\\stimuli\\training\\test_range_rand\\clock\\clock%d.png',imageN);
             imwrite(gaborPatch_clock,clock_label);
         end
     end
