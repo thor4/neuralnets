@@ -73,7 +73,7 @@ for contrastN = 1:length(contrasts)
     end
 end
 toc
-% tic %generate test sets
+% tic %generate 25 test sets spanning entire tilt range
 % for tiltN = 1:length(tilts)
 %     counter_tilt = orientation - tilts(tiltN); 
 %     clock_tilt = orientation + tilts(tiltN); 
