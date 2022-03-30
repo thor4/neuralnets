@@ -45,7 +45,7 @@ n_train_gabor = floor(num_gabors*(2/3)); %number of training gabor images
 n_valid_gabor = floor(0.8*(num_gabors-n_train_gabor)); %number of validation gabor images
 n_test_gabor = num_gabors - n_train_gabor - n_valid_gabor;
 imageN = 0; %initialize image counter
-%UPDATE WHERE IMAGES WILL BE STORED TO SAVE ON OSF
+
 tic
 for contrastN = 1:length(contrasts)
     contrast = contrasts(contrastN); %current contrast
